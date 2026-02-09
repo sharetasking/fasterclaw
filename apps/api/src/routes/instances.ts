@@ -21,9 +21,9 @@ const instanceSchema = z.object({
   id: z.string(),
   userId: z.string(),
   name: z.string(),
-  flyAppName: z.string(),
+  flyAppName: z.string().nullable(),
   flyMachineId: z.string().nullable(),
-  status: z.enum(['CREATING', 'RUNNING', 'STOPPED', 'FAILED', 'DELETED']),
+  status: z.string(),
   region: z.string(),
   ipAddress: z.string().nullable(),
   createdAt: z.string(),
@@ -244,8 +244,8 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Instance is not stopped' });
       }
 
-      if (!instance.flyMachineId) {
-        return reply.code(400).send({ error: 'No machine ID found' });
+      if (!instance.flyMachineId || !instance.flyAppName) {
+        return reply.code(400).send({ error: 'No machine ID or app name found' });
       }
 
       try {
@@ -307,8 +307,8 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Instance is not running' });
       }
 
-      if (!instance.flyMachineId) {
-        return reply.code(400).send({ error: 'No machine ID found' });
+      if (!instance.flyMachineId || !instance.flyAppName) {
+        return reply.code(400).send({ error: 'No machine ID or app name found' });
       }
 
       try {
@@ -368,10 +368,12 @@ export async function instanceRoutes(fastify: FastifyInstance) {
 
       try {
         // Delete Fly machine and app if they exist
-        if (instance.flyMachineId) {
-          await deleteMachine(instance.flyAppName, instance.flyMachineId);
+        if (instance.flyAppName) {
+          if (instance.flyMachineId) {
+            await deleteMachine(instance.flyAppName, instance.flyMachineId);
+          }
+          await deleteApp(instance.flyAppName);
         }
-        await deleteApp(instance.flyAppName);
 
         // Mark instance as deleted
         await prisma.instance.update({

@@ -11,6 +11,7 @@ import { cookiePlugin, type CookiePluginOptions } from './plugins/cookie.js';
 import { jwtPlugin, type JwtPluginOptions } from './plugins/jwt.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
+import { googleAuthRoutes } from './routes/google-auth.js';
 import { instanceRoutes } from './routes/instances.js';
 import { billingRoutes } from './routes/billing.js';
 
@@ -92,6 +93,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   // Register routes
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    await app.register(googleAuthRoutes);
+  }
   await app.register(instanceRoutes);
   await app.register(billingRoutes);
 

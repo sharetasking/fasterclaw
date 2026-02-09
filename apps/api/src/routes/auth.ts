@@ -76,7 +76,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         data: {
           name,
           email,
-          password: hashedPassword,
+          passwordHash: hashedPassword,
         },
         select: {
           id: true,
@@ -123,24 +123,24 @@ export async function authRoutes(fastify: FastifyInstance) {
           id: true,
           name: true,
           email: true,
-          password: true,
+          passwordHash: true,
           createdAt: true,
           updatedAt: true,
         },
       });
 
-      if (!user || !user.password) {
+      if (!user || !user.passwordHash) {
         return reply.code(401).send({ error: 'Invalid credentials' });
       }
 
-      const isValid = await bcrypt.compare(password, user.password);
+      const isValid = await bcrypt.compare(password, user.passwordHash);
       if (!isValid) {
         return reply.code(401).send({ error: 'Invalid credentials' });
       }
 
       const accessToken = generateToken(user);
 
-      const { password: _, ...userWithoutPassword } = user;
+      const { passwordHash: _, ...userWithoutPassword } = user;
 
       return reply.send({
         accessToken,

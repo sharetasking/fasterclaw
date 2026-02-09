@@ -26,6 +26,7 @@ model Instance {
   name             String
   flyMachineId     String?  @unique
   flyAppName       String?  @unique
+  ipAddress        String?
   status           String   @default("pending") // pending, provisioning, running, stopped, error
   telegramBotToken String?
   aiModel          String   @default("claude-sonnet-4")
@@ -40,12 +41,15 @@ model Subscription {
   id                   String   @id @default(cuid())
   userId               String   @unique
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String
   stripeSubscriptionId String   @unique
-  stripePriceId        String
+  stripePriceId        String?
   status               String   // active, canceled, past_due, etc.
-  plan                 String   // starter, pro, business
+  plan                 String?  // starter, pro, business
   instanceLimit        Int      @default(1)
+  currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }

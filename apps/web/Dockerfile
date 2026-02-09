@@ -1,4 +1,4 @@
-# Dockerfile for FasterClaw API
+# Dockerfile for FasterClaw Web (Next.js)
 FROM node:22-alpine AS base
 
 # Install pnpm
@@ -9,24 +9,21 @@ WORKDIR /app
 
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
-COPY packages/db/package.json ./packages/db/
-COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
-COPY packages/db ./packages/db
-COPY apps/api ./apps/api
+COPY apps/web ./apps/web
 
-# Generate Prisma client
-RUN pnpm --filter @fasterclaw/db db:generate
+# Build args for Next.js public env vars
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build db package
-RUN pnpm --filter @fasterclaw/db build
-
-# Build API
-RUN pnpm --filter @fasterclaw/api build
+# Build Next.js app
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @fasterclaw/web build
 
 # Production stage
 FROM node:22-alpine AS production
@@ -37,17 +34,17 @@ WORKDIR /app
 
 # Copy built assets
 COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/packages/db ./packages/db
-COPY --from=base /app/apps/api ./apps/api
+COPY --from=base /app/apps/web ./apps/web
 COPY --from=base /app/package.json ./
 COPY --from=base /app/pnpm-workspace.yaml ./
 
 # Set environment
 ENV NODE_ENV=production
-ENV PORT=3001
-ENV HOST=0.0.0.0
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+ENV NEXT_TELEMETRY_DISABLED=1
 
-EXPOSE 3001
+EXPOSE 3000
 
 # Start the server
-CMD ["pnpm", "--filter", "@fasterclaw/api", "start"]
+CMD ["sh", "-c", "cd apps/web && node_modules/.bin/next start -H 0.0.0.0 -p 3000"]
