@@ -17,14 +17,14 @@ const personalities = [
     label: "Quick & Efficient",
     description: "Fast responses, great for simple tasks",
     icon: Zap,
-    model: "claude-3-haiku"
+    model: "claude-haiku-4"
   },
   {
     value: "balanced",
     label: "Balanced",
     description: "Best mix of speed and capability",
     icon: Sparkles,
-    model: "claude-3-sonnet",
+    model: "claude-sonnet-4",
     recommended: true
   },
   {
@@ -32,7 +32,7 @@ const personalities = [
     label: "Most Capable",
     description: "Handles complex conversations",
     icon: Brain,
-    model: "claude-3-opus"
+    model: "claude-opus-4"
   },
 ];
 
@@ -56,9 +56,12 @@ export default function NewAgentPage() {
     setLoading(true);
 
     try {
+      const selectedModel = personalities.find(p => p.value === formData.personality)?.model || "claude-sonnet-4";
       const result = await createInstance({
         name: formData.name,
-        // TODO: Pass telegramToken and model to API when supported
+        region: "iad",
+        telegramBotToken: formData.telegramToken,
+        aiModel: selectedModel,
       });
 
       if (result) {

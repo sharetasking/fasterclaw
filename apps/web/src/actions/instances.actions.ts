@@ -11,13 +11,17 @@ export type Instance = {
   status: string;
   region: string;
   ipAddress: string | null;
+  telegramBotToken: string | null;
+  aiModel: string;
   createdAt: string;
   updatedAt: string;
 };
 
 export type CreateInstanceInput = {
   name: string;
-  region?: string;
+  region: string;
+  telegramBotToken: string;
+  aiModel?: string;
 };
 
 async function getAuthToken(): Promise<string | null> {
@@ -93,6 +97,32 @@ export async function createInstance(
     return await response.json();
   } catch (error) {
     console.error("Create instance error:", error);
+    return null;
+  }
+}
+
+export async function updateInstance(
+  id: string,
+  updates: Partial<CreateInstanceInput>
+): Promise<Instance | null> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(updates),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to update instance");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Update instance error:", error);
     return null;
   }
 }

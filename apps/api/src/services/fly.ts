@@ -8,6 +8,28 @@
 const FLY_API_BASE = 'https://api.machines.dev/v1';
 const FLY_API_TOKEN = process.env.FLY_API_TOKEN;
 
+const MAX_RETRIES = 3;
+const INITIAL_BACKOFF_MS = 1000;
+
+/** Retryable HTTP status codes (server errors + rate limiting) */
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+export class FlyApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly detail: string,
+    public readonly operation: string
+  ) {
+    super(`Fly.io ${operation} failed (${status}): ${detail}`);
+    this.name = 'FlyApiError';
+  }
+
+  get isRetryable(): boolean {
+    return RETRYABLE_STATUSES.has(this.status);
+  }
+}
+
 interface MachineConfig {
   region: string;
   config: {
@@ -36,45 +58,109 @@ interface Machine {
 }
 
 /**
- * Make a request to the Fly.io Machines API
+ * Sleep for a given number of milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Make a request to the Fly.io Machines API with automatic retries
+ * and exponential backoff for transient failures.
  */
 async function flyRequest(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  operation: string = 'request'
 ): Promise<any> {
   if (!FLY_API_TOKEN) {
     throw new Error('FLY_API_TOKEN environment variable is required');
   }
 
   const url = `${FLY_API_BASE}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${FLY_API_TOKEN}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  let lastError: FlyApiError | Error | null = null;
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Fly.io API error: ${response.status} ${error}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${FLY_API_TOKEN}`,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        const error = new FlyApiError(
+          response.status,
+          response.statusText,
+          detail,
+          operation
+        );
+
+        // Only retry on transient/server errors
+        if (error.isRetryable && attempt < MAX_RETRIES) {
+          lastError = error;
+          const backoff = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
+          await sleep(backoff);
+          continue;
+        }
+
+        throw error;
+      }
+
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return {};
+      }
+
+      return response.json();
+    } catch (error) {
+      // If it's already a FlyApiError that's non-retryable, re-throw
+      if (error instanceof FlyApiError && !error.isRetryable) {
+        throw error;
+      }
+
+      // Network errors (fetch failures) are retryable
+      if (error instanceof FlyApiError) {
+        lastError = error;
+      } else {
+        lastError = new FlyApiError(
+          0,
+          'NetworkError',
+          error instanceof Error ? error.message : String(error),
+          operation
+        );
+      }
+
+      if (attempt < MAX_RETRIES) {
+        const backoff = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
+        await sleep(backoff);
+        continue;
+      }
+    }
   }
 
-  return response.json();
+  throw lastError || new Error(`Fly.io ${operation} failed after ${MAX_RETRIES} retries`);
 }
 
 /**
  * Create a new Fly app
  */
 export async function createApp(name: string): Promise<void> {
-  await flyRequest('/apps', {
-    method: 'POST',
-    body: JSON.stringify({
-      app_name: name,
-      org_slug: process.env.FLY_ORG_SLUG || 'personal',
-    }),
-  });
+  await flyRequest(
+    '/apps',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        app_name: name,
+        org_slug: process.env.FLY_ORG_SLUG || 'personal',
+      }),
+    },
+    'createApp'
+  );
 }
 
 /**
@@ -84,14 +170,18 @@ export async function createMachine(
   appName: string,
   config: MachineConfig
 ): Promise<Machine> {
-  const response = await flyRequest(`/apps/${appName}/machines`, {
-    method: 'POST',
-    body: JSON.stringify({
-      name: `${appName}-machine`,
-      region: config.region,
-      config: config.config,
-    }),
-  });
+  const response = await flyRequest(
+    `/apps/${appName}/machines`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `${appName}-machine`,
+        region: config.region,
+        config: config.config,
+      }),
+    },
+    'createMachine'
+  );
 
   return response;
 }
@@ -103,9 +193,11 @@ export async function startMachine(
   appName: string,
   machineId: string
 ): Promise<void> {
-  await flyRequest(`/apps/${appName}/machines/${machineId}/start`, {
-    method: 'POST',
-  });
+  await flyRequest(
+    `/apps/${appName}/machines/${machineId}/start`,
+    { method: 'POST' },
+    'startMachine'
+  );
 }
 
 /**
@@ -115,9 +207,11 @@ export async function stopMachine(
   appName: string,
   machineId: string
 ): Promise<void> {
-  await flyRequest(`/apps/${appName}/machines/${machineId}/stop`, {
-    method: 'POST',
-  });
+  await flyRequest(
+    `/apps/${appName}/machines/${machineId}/stop`,
+    { method: 'POST' },
+    'stopMachine'
+  );
 }
 
 /**
@@ -127,18 +221,22 @@ export async function deleteMachine(
   appName: string,
   machineId: string
 ): Promise<void> {
-  await flyRequest(`/apps/${appName}/machines/${machineId}`, {
-    method: 'DELETE',
-  });
+  await flyRequest(
+    `/apps/${appName}/machines/${machineId}`,
+    { method: 'DELETE' },
+    'deleteMachine'
+  );
 }
 
 /**
  * Delete a Fly app
  */
 export async function deleteApp(appName: string): Promise<void> {
-  await flyRequest(`/apps/${appName}`, {
-    method: 'DELETE',
-  });
+  await flyRequest(
+    `/apps/${appName}`,
+    { method: 'DELETE' },
+    'deleteApp'
+  );
 }
 
 /**
@@ -148,12 +246,20 @@ export async function getMachine(
   appName: string,
   machineId: string
 ): Promise<Machine> {
-  return flyRequest(`/apps/${appName}/machines/${machineId}`);
+  return flyRequest(
+    `/apps/${appName}/machines/${machineId}`,
+    {},
+    'getMachine'
+  );
 }
 
 /**
  * List all machines in an app
  */
 export async function listMachines(appName: string): Promise<Machine[]> {
-  return flyRequest(`/apps/${appName}/machines`);
+  return flyRequest(
+    `/apps/${appName}/machines`,
+    {},
+    'listMachines'
+  );
 }
