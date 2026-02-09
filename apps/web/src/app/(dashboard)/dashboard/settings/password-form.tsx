@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import toast from "react-hot-toast";
+import { updatePassword } from "@/actions/auth.actions";
 
 export function PasswordForm() {
   const [loading, setLoading] = useState(false);
@@ -30,9 +31,20 @@ export function PasswordForm() {
     setLoading(true);
 
     try {
-      // Password update would need an API endpoint
-      // For now, show a message that this feature is coming
-      toast.error("Password update coming soon");
+      const result = await updatePassword(
+        passwordData.currentPassword,
+        passwordData.newPassword
+      );
+      if (result.success) {
+        toast.success("Password updated successfully");
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      } else {
+        toast.error(result.error || "Failed to update password");
+      }
     } catch (error) {
       toast.error("Failed to update password");
     } finally {

@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import toast from "react-hot-toast";
-import { logout } from "@/actions/auth.actions";
+import { deleteAccount } from "@/actions/auth.actions";
 
 export function DangerZone() {
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export function DangerZone() {
   const handleDeleteAccount = async () => {
     if (
       !confirm(
-        "Are you sure you want to delete your account? This action cannot be undone."
+        "Are you sure you want to delete your account? This action cannot be undone. All your instances and data will be permanently deleted."
       )
     ) {
       return;
@@ -29,9 +29,13 @@ export function DangerZone() {
     setLoading(true);
 
     try {
-      // Account deletion would need an API endpoint
-      // For now, show a message that this feature is coming
-      toast.error("Account deletion coming soon");
+      const result = await deleteAccount();
+      if (result.success) {
+        toast.success("Account deleted successfully");
+        router.push("/");
+      } else {
+        toast.error(result.error || "Failed to delete account");
+      }
     } catch (error) {
       toast.error("Failed to delete account");
     } finally {

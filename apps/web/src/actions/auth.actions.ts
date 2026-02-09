@@ -14,7 +14,6 @@ export type AuthResponse = {
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
   try {
-    // TODO: Replace with actual API call to Fastify backend
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
       method: "POST",
       headers: {
@@ -24,9 +23,10 @@ export async function login(email: string, password: string): Promise<AuthRespon
     });
 
     if (!response.ok) {
+      const error = await response.json();
       return {
         success: false,
-        error: "Invalid credentials",
+        error: error.error || "Invalid credentials",
       };
     }
 
@@ -34,7 +34,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
 
     // Set auth token cookie
     const cookieStore = await cookies();
-    cookieStore.set("auth_token", data.token, {
+    cookieStore.set("auth_token", data.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -60,7 +60,6 @@ export async function register(
   password: string
 ): Promise<AuthResponse> {
   try {
-    // TODO: Replace with actual API call to Fastify backend
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
       method: "POST",
       headers: {
@@ -73,7 +72,7 @@ export async function register(
       const error = await response.json();
       return {
         success: false,
-        error: error.message || "Registration failed",
+        error: error.error || "Registration failed",
       };
     }
 
@@ -81,7 +80,7 @@ export async function register(
 
     // Set auth token cookie
     const cookieStore = await cookies();
-    cookieStore.set("auth_token", data.token, {
+    cookieStore.set("auth_token", data.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -125,7 +124,6 @@ export async function getCurrentUser() {
       return null;
     }
 
-    // TODO: Replace with actual API call to Fastify backend
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -141,5 +139,101 @@ export async function getCurrentUser() {
   } catch (error) {
     console.error("Get current user error:", error);
     return null;
+  }
+}
+
+export async function updateProfile(name: string): Promise<AuthResponse> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth_token")?.value;
+
+    if (!token) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { success: false, error: error.error || "Failed to update profile" };
+    }
+
+    const user = await response.json();
+    return { success: true, user };
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return { success: false, error: "An error occurred while updating profile" };
+  }
+}
+
+export async function updatePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth_token")?.value;
+
+    if (!token) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/password`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { success: false, error: error.error || "Failed to update password" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Update password error:", error);
+    return { success: false, error: "An error occurred while updating password" };
+  }
+}
+
+export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth_token")?.value;
+
+    if (!token) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/account`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { success: false, error: error.error || "Failed to delete account" };
+    }
+
+    // Clear the auth cookie
+    const cookieStoreForDelete = await cookies();
+    cookieStoreForDelete.delete("auth_token");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Delete account error:", error);
+    return { success: false, error: "An error occurred while deleting account" };
   }
 }

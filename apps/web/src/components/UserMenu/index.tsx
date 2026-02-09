@@ -29,10 +29,13 @@ type Props = {
 export default function UserMenu({ collapsed = false }: Props) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    getCurrentUser().then(setUser);
+    getCurrentUser()
+      .then(setUser)
+      .finally(() => setIsLoading(false));
   }, []);
 
   const handleLogout = () => {
@@ -51,9 +54,29 @@ export default function UserMenu({ collapsed = false }: Props) {
       .slice(0, 2);
   };
 
-  if (!user) {
-    return null;
+  // Show loading skeleton while fetching user
+  if (isLoading) {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-3 w-full rounded-md px-2 py-2",
+          collapsed && "justify-center"
+        )}
+      >
+        <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+        {!collapsed && (
+          <div className="flex-1 space-y-1">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-32 bg-muted rounded animate-pulse" />
+          </div>
+        )}
+      </div>
+    );
   }
+
+  // Use fallback values if user data is not available
+  const displayName = user?.name || "User";
+  const displayEmail = user?.email || "";
 
   return (
     <DropdownMenu>
@@ -65,17 +88,19 @@ export default function UserMenu({ collapsed = false }: Props) {
           )}
         >
           <Avatar className="h-8 w-8">
-            {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+            {user?.avatar && <AvatarImage src={user.avatar} alt={displayName} />}
             <AvatarFallback className="text-xs">
-              {getInitials(user.name)}
+              {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {user.email}
-              </p>
+              <p className="text-sm font-medium truncate">{displayName}</p>
+              {displayEmail && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {displayEmail}
+                </p>
+              )}
             </div>
           )}
         </button>
@@ -87,10 +112,12 @@ export default function UserMenu({ collapsed = false }: Props) {
       >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            {displayEmail && (
+              <p className="text-xs leading-none text-muted-foreground">
+                {displayEmail}
+              </p>
+            )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Bot, Zap, Brain, Sparkles, ExternalLink, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { createInstance } from "@/actions/instances.actions";
 
 const personalities = [
   {
@@ -55,11 +56,17 @@ export default function NewAgentPage() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const result = await createInstance({
+        name: formData.name,
+        // TODO: Pass telegramToken and model to API when supported
+      });
 
-      toast.success("Your agent is being created!");
-      router.push("/dashboard");
+      if (result) {
+        toast.success("Your agent is being created!");
+        router.push("/dashboard");
+      } else {
+        toast.error("Failed to create agent");
+      }
     } catch (error) {
       toast.error("Failed to create agent");
     } finally {

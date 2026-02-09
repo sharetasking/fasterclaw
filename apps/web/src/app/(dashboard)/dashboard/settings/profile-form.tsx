@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import toast from "react-hot-toast";
+import { updateProfile } from "@/actions/auth.actions";
 
 interface ProfileFormProps {
   user: {
@@ -28,9 +29,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setLoading(true);
 
     try {
-      // Profile update would need an API endpoint
-      // For now, show a message that this feature is coming
-      toast.error("Profile update coming soon");
+      const result = await updateProfile(profileData.name);
+      if (result.success) {
+        toast.success("Profile updated successfully");
+        router.refresh();
+      } else {
+        toast.error(result.error || "Failed to update profile");
+      }
     } catch (error) {
       toast.error("Failed to update profile");
     } finally {
