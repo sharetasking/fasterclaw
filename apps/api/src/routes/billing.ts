@@ -6,6 +6,7 @@ import {
   stripe,
   getOrCreateStripeCustomer,
   verifyWebhookSignature,
+  createBillingPortalSession,
   PLANS,
   getPlanFromPriceId,
   getPriceIdForPlan,
@@ -28,6 +29,7 @@ const subscriptionSchema = z.object({
   stripeSubscriptionId: z.string(),
   status: z.string(),
   plan: z.enum(['starter', 'pro', 'enterprise']).nullable(),
+  instanceLimit: z.number(),
   currentPeriodStart: z.string().nullable(),
   currentPeriodEnd: z.string(),
   cancelAtPeriodEnd: z.boolean(),
@@ -142,17 +144,16 @@ export async function billingRoutes(fastify: FastifyInstance) {
       });
 
       if (!user?.stripeCustomerId) {
-        return reply.code(400).send({ error: 'No Stripe customer found' });
+        return reply.code(400).send({ error: 'No billing account found. Please subscribe first.' });
       }
 
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const url = await createBillingPortalSession(
+        user.stripeCustomerId,
+        `${baseUrl}/dashboard/billing`
+      );
 
-      const session = await stripe.billingPortal.sessions.create({
-        customer: user.stripeCustomerId,
-        return_url: `${baseUrl}/dashboard/billing`,
-      });
-
-      return { url: session.url };
+      return { url };
     }
   );
 
@@ -260,6 +261,7 @@ export async function billingRoutes(fastify: FastifyInstance) {
           stripeSubscriptionId: subscription.stripeSubscriptionId,
           status: subscription.status,
           plan,
+          instanceLimit: subscription.instanceLimit,
           currentPeriodStart: subscription.currentPeriodStart?.toISOString() ?? null,
           currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
           cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
@@ -291,14 +293,30 @@ export async function billingRoutes(fastify: FastifyInstance) {
       const signature = request.headers['stripe-signature'] as string;
 
       if (!signature) {
+        fastify.log.warn('Stripe webhook: Missing stripe-signature header');
         return reply.code(400).send({ error: 'Missing stripe-signature header' });
       }
 
       let event;
       try {
-        const rawBody = (request as any).rawBody || Buffer.from(JSON.stringify(request.body || {}));
-        event = verifyWebhookSignature(rawBody as Buffer, signature);
-      } catch (err) {
+        // Access the raw body captured by fastify-raw-body plugin
+        const rawBody = (request as any).rawBody as Buffer;
+
+        if (!rawBody) {
+          fastify.log.error('Stripe webhook: rawBody not available - plugin may not be configured');
+          return reply.code(400).send({ error: 'Raw body not available' });
+        }
+
+        if (!process.env.STRIPE_WEBHOOK_SECRET) {
+          fastify.log.error('Stripe webhook: STRIPE_WEBHOOK_SECRET not set');
+          return reply.code(400).send({ error: 'Webhook secret not configured' });
+        }
+
+        fastify.log.info(`Stripe webhook: Verifying signature for ${rawBody.length} byte payload`);
+        event = verifyWebhookSignature(rawBody, signature);
+        fastify.log.info(`Stripe webhook: Received event type: ${event.type}`);
+      } catch (err: any) {
+        fastify.log.error({ err: err.message }, 'Stripe webhook: Signature verification failed');
         return reply.code(400).send({ error: 'Invalid signature' });
       }
 

@@ -49,11 +49,31 @@ function mapFlyState(flyState: string): string {
   }
 }
 
+// Helper to determine AI provider from model name
+function getAIProvider(model: string): 'openai' | 'anthropic' | 'google' {
+  if (model.startsWith('gpt-') || model.startsWith('o1-')) return 'openai';
+  if (model.startsWith('claude-')) return 'anthropic';
+  if (model.startsWith('gemini-')) return 'google';
+  return 'anthropic'; // default to anthropic for OpenClaw
+}
+
+// Helper to get the correct API key for the provider
+function getAPIKeyForProvider(provider: 'openai' | 'anthropic' | 'google'): string {
+  switch (provider) {
+    case 'openai':
+      return process.env.OPENAI_KEY || '';
+    case 'anthropic':
+      return process.env.ANTHROPIC_API_KEY || '';
+    case 'google':
+      return process.env.GEMINI_API_KEY || '';
+  }
+}
+
 // Zod schemas for request/response validation
 const createInstanceSchema = z.object({
   name: z.string().min(1).max(50),
-  region: z.string().default('lax'),
   telegramBotToken: z.string().min(1, 'Telegram bot token is required'),
+  region: z.string().default('lax'),
   aiModel: z.string().default('claude-sonnet-4'),
 });
 
@@ -65,9 +85,9 @@ const instanceSchema = z.object({
   flyMachineId: z.string().nullable(),
   status: z.string(),
   region: z.string(),
+  aiModel: z.string(),
   ipAddress: z.string().nullable(),
   telegramBotToken: z.string().nullable(),
-  aiModel: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -89,6 +109,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
           201: instanceSchema,
           400: z.object({ error: z.string() }),
           401: z.object({ error: z.string() }),
+          403: z.object({ error: z.string() }),
         },
         security: [{ bearerAuth: [] }],
       },
@@ -96,7 +117,32 @@ export async function instanceRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = request.user.id;
-      const { name, region, telegramBotToken, aiModel } = request.body;
+      const { name, telegramBotToken, region, aiModel } = request.body;
+
+      // Check subscription status (Priority 1: Subscription Gating)
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId },
+      });
+
+      if (!subscription || subscription.status !== 'ACTIVE') {
+        return reply.code(403).send({
+          error: 'Active subscription required. Please subscribe to create instances.'
+        });
+      }
+
+      // Check instance limit
+      const instanceCount = await prisma.instance.count({
+        where: {
+          userId,
+          status: { notIn: ['DELETED', 'FAILED'] },
+        },
+      });
+
+      if (subscription.instanceLimit !== -1 && instanceCount >= subscription.instanceLimit) {
+        return reply.code(403).send({
+          error: `Instance limit reached (${subscription.instanceLimit}). Please upgrade your plan or delete existing instances.`
+        });
+      }
 
       // Generate unique Fly app name
       const flyAppName = `openclaw-${userId.slice(0, 8)}-${Date.now()}`.toLowerCase();
@@ -107,9 +153,9 @@ export async function instanceRoutes(fastify: FastifyInstance) {
           data: {
             userId,
             name,
+            telegramBotToken,
             flyAppName,
             region,
-            telegramBotToken,
             aiModel,
             status: 'CREATING',
           },
@@ -118,6 +164,10 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         // Create Fly app and machine in background
         (async () => {
           try {
+            // Determine AI provider and get API key (Priority 1: Multi-provider support)
+            const aiProvider = getAIProvider(aiModel);
+            const apiKey = getAPIKeyForProvider(aiProvider);
+
             // Step 1: Create Fly app
             await createApp(flyAppName);
 
@@ -127,15 +177,19 @@ export async function instanceRoutes(fastify: FastifyInstance) {
               data: { status: 'PROVISIONING' },
             });
 
-            // Step 3: Create machine
+            // Step 3: Create machine with all required env vars (Priority 1: Fly.io config)
             const machine = await createMachine(flyAppName, {
               region,
               config: {
                 image: 'ghcr.io/openclaw/openclaw:latest',
                 env: {
                   TELEGRAM_BOT_TOKEN: telegramBotToken,
-                  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+                  // Pass the correct API key based on provider
+                  ...(aiProvider === 'openai' && { OPENAI_API_KEY: apiKey }),
+                  ...(aiProvider === 'anthropic' && { ANTHROPIC_API_KEY: apiKey }),
+                  ...(aiProvider === 'google' && { GOOGLE_API_KEY: apiKey }),
                   AI_MODEL: aiModel,
+                  AI_PROVIDER: aiProvider,
                 },
                 services: [
                   {
@@ -182,7 +236,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to create instance' });
+        return reply.code(400).send({ error: getErrorMessage(error, 'Failed to create instance') });
       }
     }
   );
@@ -391,7 +445,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /instances/:id/sync - Sync instance status from Fly.io
+  // POST /instances/:id/sync - Sync instance status from Fly.io (Priority 2: Status sync)
   app.post(
     '/instances/:id/sync',
     {

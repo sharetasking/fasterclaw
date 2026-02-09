@@ -13,10 +13,19 @@ function statusVariant(status: string) {
     case "PROVISIONING":
     case "STARTING":
       return "outline" as const;
+    case "FAILED":
+      return "destructive" as const;
     default:
       return "secondary" as const;
   }
 }
+
+const regionLabels: Record<string, string> = {
+  iad: "US East (Virginia)",
+  lax: "US West (Los Angeles)",
+  lhr: "Europe (London)",
+  sin: "Asia Pacific (Singapore)",
+};
 
 export default async function DashboardPage() {
   const instances = await getInstances();
@@ -31,7 +40,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">Instances</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your Claude AI instances
+            Manage your OpenClaw bot instances
           </p>
         </div>
         <Link href="/dashboard/instances/new">
@@ -98,7 +107,7 @@ export default async function DashboardPage() {
               <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No instances yet</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first Claude AI instance to get started
+                Create your first OpenClaw bot instance to get started
               </p>
               <Link href="/dashboard/instances/new">
                 <Button>Create Instance</Button>
@@ -125,7 +134,7 @@ export default async function DashboardPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {instance.region} &bull; {instance.aiModel}
+                          {regionLabels[instance.region] || instance.region} &bull; {instance.aiModel}
                         </p>
                       </div>
                     </div>

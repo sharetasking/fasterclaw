@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,66 +10,117 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, CreditCard, Download, ExternalLink } from "lucide-react";
-import {
-  getSubscription,
-  getInvoices,
-  type PlanType,
-  type PlanConfig,
-} from "@/actions/billing.actions";
-import { BillingActions } from "./billing-actions";
+import { Check, CreditCard, Loader2, ExternalLink } from "lucide-react";
+import { authenticatedApiClient } from "@/lib/api";
+import toast from "react-hot-toast";
 
-// Default plans if API doesn't return them (shouldn't happen but good fallback)
-const DEFAULT_PLANS: Record<PlanType, PlanConfig> = {
-  starter: {
+interface Subscription {
+  id: string;
+  status: string;
+  plan: string;
+  instanceLimit: number;
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
+}
+
+type PlanId = "starter" | "pro" | "enterprise";
+
+const plans: { id: PlanId; name: string; price: number; instanceLimit: number; features: string[]; popular?: boolean }[] = [
+  {
+    id: "starter",
     name: "Starter",
-    priceId: "",
     price: 39,
     instanceLimit: 2,
     features: [
-      "Up to 100K requests/month",
-      "2 Claude instances",
-      "Basic analytics",
+      "2 OpenClaw instances",
+      "Telegram bot support",
+      "GPT-4o & Claude models",
       "Email support",
     ],
   },
-  pro: {
+  {
+    id: "pro",
     name: "Pro",
-    priceId: "",
     price: 79,
     instanceLimit: 10,
+    popular: true,
     features: [
-      "Up to 1M requests/month",
-      "10 Claude instances",
-      "Advanced analytics",
+      "10 OpenClaw instances",
+      "Telegram bot support",
+      "All AI models",
       "Priority support",
-      "Team collaboration",
+      "Custom bot names",
     ],
   },
-  enterprise: {
+  {
+    id: "enterprise",
     name: "Enterprise",
-    priceId: "",
     price: 149,
     instanceLimit: -1,
     features: [
-      "Unlimited requests",
       "Unlimited instances",
-      "Custom analytics",
+      "All platforms (coming soon)",
+      "All AI models",
       "24/7 dedicated support",
       "SLA guarantee",
     ],
   },
-};
+];
 
-export default async function BillingPage() {
-  const [subscriptionData, invoices] = await Promise.all([
-    getSubscription(),
-    getInvoices(),
-  ]);
+export default function BillingPage() {
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<PlanId | null>(null);
 
-  const subscription = subscriptionData?.subscription;
-  const plans = subscriptionData?.plans || DEFAULT_PLANS;
-  const currentPlan = subscription?.plan || null;
+  useEffect(() => {
+    fetchSubscription();
+  }, []);
+
+  const fetchSubscription = async () => {
+    try {
+      const data = await authenticatedApiClient.get<{ subscription: Subscription | null }>(
+        "/billing/subscription"
+      );
+      setSubscription(data.subscription);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fetch subscription");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    try {
+      const data = await authenticatedApiClient.post<{ url: string }>("/billing/portal");
+      window.location.href = data.url;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to open billing portal");
+      setPortalLoading(false);
+    }
+  };
+
+  const handleSubscribe = async (planId: PlanId) => {
+    setCheckoutLoading(planId);
+    try {
+      const data = await authenticatedApiClient.post<{ url: string }>("/billing/checkout", {
+        plan: planId,
+      });
+      window.location.href = data.url;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start checkout");
+      setCheckoutLoading(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -90,17 +143,15 @@ export default async function BillingPage() {
                   <CardTitle>Current Plan</CardTitle>
                   <CardDescription>
                     {subscription
-                      ? `You are currently on the ${currentPlan || "free"} plan`
+                      ? `You are on the ${subscription.plan || "Free"} plan`
                       : "You don't have an active subscription"}
                   </CardDescription>
                 </div>
                 {subscription && (
                   <Badge
-                    variant={
-                      subscription.status === "ACTIVE" ? "default" : "secondary"
-                    }
+                    variant={subscription.status === "ACTIVE" ? "default" : "secondary"}
                   >
-                    {subscription.status.toLowerCase()}
+                    {subscription.status}
                   </Badge>
                 )}
               </div>
@@ -111,19 +162,17 @@ export default async function BillingPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Plan</span>
                     <span className="font-medium capitalize">
-                      {currentPlan || "Free"}
+                      {subscription.plan || "Free"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Billing cycle
+                    <span className="text-sm text-muted-foreground">Instance Limit</span>
+                    <span className="font-medium">
+                      {subscription.instanceLimit === -1 ? "Unlimited" : subscription.instanceLimit}
                     </span>
-                    <span className="font-medium">Monthly</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Next billing date
-                    </span>
+                    <span className="text-sm text-muted-foreground">Next billing date</span>
                     <span className="font-medium">
                       {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                     </span>
@@ -136,169 +185,136 @@ export default async function BillingPage() {
                       </p>
                     </div>
                   )}
+                  <div className="flex gap-3 mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                    >
+                      {portalLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                      )}
+                      Manage Subscription
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">
-                  Subscribe to a plan to get started with FasterClaw.
-                </p>
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No active subscription</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Subscribe to a plan below to create OpenClaw bot instances
+                  </p>
+                </div>
               )}
-              <div className="flex gap-3 mt-6">
-                <BillingActions hasSubscription={!!subscription} />
-              </div>
             </CardContent>
           </Card>
 
           {/* Available Plans */}
           <Card>
             <CardHeader>
-              <CardTitle>Available Plans</CardTitle>
+              <CardTitle>
+                {subscription ? "Change Plan" : "Choose a Plan"}
+              </CardTitle>
               <CardDescription>
                 {subscription
                   ? "Upgrade or downgrade your plan at any time"
-                  : "Choose a plan to get started"}
+                  : "Select a plan to get started with FasterClaw"}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-3 gap-4">
-                {(Object.entries(plans) as [PlanType, PlanConfig][]).map(
-                  ([planKey, plan]) => {
-                    const isCurrent = currentPlan === planKey;
-                    return (
-                      <div
-                        key={planKey}
-                        className={`p-4 border rounded-lg ${
-                          isCurrent ? "border-primary bg-primary/5" : ""
-                        }`}
-                      >
-                        <div className="mb-4">
-                          <h3 className="font-semibold text-lg">{plan.name}</h3>
-                          <div className="mt-2">
-                            <span className="text-3xl font-bold">
-                              ${plan.price}
-                            </span>
-                            <span className="text-muted-foreground">/month</span>
-                          </div>
-                        </div>
-                        <ul className="space-y-2 mb-4">
-                          {plan.features.map((feature) => (
-                            <li
-                              key={feature}
-                              className="flex items-start gap-2 text-sm"
-                            >
-                              <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                              <span>{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        {isCurrent ? (
-                          <Badge className="w-full justify-center">
-                            Current Plan
-                          </Badge>
-                        ) : (
-                          <BillingActions
-                            planToSelect={planKey}
-                            hasSubscription={!!subscription}
-                          />
-                        )}
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Invoice History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice History</CardTitle>
-              <CardDescription>Download your past invoices</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {invoices.length > 0 ? (
-                <div className="space-y-3">
-                  {invoices.map((invoice) => (
+                {plans.map((plan) => {
+                  const isCurrent =
+                    subscription?.plan?.toLowerCase() === plan.id;
+                  const isLoading = checkoutLoading === plan.id;
+                  return (
                     <div
-                      key={invoice.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      key={plan.name}
+                      className={`p-4 border rounded-lg relative ${
+                        isCurrent ? "border-primary bg-primary/5" : ""
+                      } ${plan.popular && !isCurrent ? "border-primary" : ""}`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <CreditCard className="h-5 w-5 text-primary" />
+                      {plan.popular && !isCurrent && (
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                          <Badge variant="default" className="text-xs">Popular</Badge>
                         </div>
-                        <div>
-                          <div className="font-medium">
-                            ${invoice.amount.toFixed(2)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(invoice.createdAt).toLocaleDateString()}
-                          </div>
+                      )}
+                      <div className="mb-4">
+                        <h3 className="font-semibold text-lg">{plan.name}</h3>
+                        <div className="mt-2">
+                          <span className="text-3xl font-bold">${plan.price}</span>
+                          <span className="text-muted-foreground">/month</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Badge
-                          variant={
-                            invoice.status === "paid" ? "default" : "secondary"
-                          }
+                      <ul className="space-y-2 mb-4">
+                        {plan.features.map((feature) => (
+                          <li
+                            key={feature}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {isCurrent ? (
+                        <Badge className="w-full justify-center">Current Plan</Badge>
+                      ) : subscription ? (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={handleManageBilling}
+                          disabled={portalLoading}
                         >
-                          {invoice.status}
-                        </Badge>
-                        {invoice.invoiceUrl && (
-                          <a
-                            href={invoice.invoiceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button variant="ghost" size="icon">
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </a>
-                        )}
-                        {invoice.invoicePdf && (
-                          <a
-                            href={invoice.invoicePdf}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button variant="ghost" size="icon">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </a>
-                        )}
-                      </div>
+                          {portalLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Change Plan
+                        </Button>
+                      ) : (
+                        <Button
+                          className={`w-full ${plan.popular ? "" : "variant-outline"}`}
+                          variant={plan.popular ? "default" : "outline"}
+                          onClick={() => handleSubscribe(plan.id)}
+                          disabled={isLoading || checkoutLoading !== null}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Subscribe
+                        </Button>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  No invoices yet. Subscribe to a plan to see your billing
-                  history.
-                </p>
-              )}
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Payment Method */}
+          {/* Usage Summary */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Payment Method</CardTitle>
+              <CardTitle className="text-base">Current Usage</CardTitle>
             </CardHeader>
-            <CardContent>
-              {subscription ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Manage your payment method through the Stripe portal.
-                  </p>
-                  <BillingActions portalOnly hasSubscription={true} />
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Subscribe to a plan to add a payment method.
-                </p>
-              )}
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Instance Limit</span>
+                <span className="font-medium">
+                  {subscription?.instanceLimit === -1 ? "Unlimited" : `${subscription?.instanceLimit || 0} instances`}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Plan</span>
+                <span className="font-medium capitalize">
+                  {subscription?.plan || "None"}
+                </span>
+              </div>
             </CardContent>
           </Card>
 
@@ -308,18 +324,46 @@ export default async function BillingPage() {
               <CardTitle className="text-base">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Link href="/pricing">
-                <Button variant="outline" className="w-full justify-start">
-                  View All Plans
+              {!subscription && (
+                <Button
+                  className="w-full justify-start"
+                  onClick={() => handleSubscribe("pro")}
+                  disabled={checkoutLoading !== null}
+                >
+                  {checkoutLoading === "pro" ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <CreditCard className="h-4 w-4 mr-2" />
+                  )}
+                  Subscribe to Pro (Recommended)
                 </Button>
-              </Link>
+              )}
               {subscription && (
-                <BillingActions
-                  portalOnly
-                  hasSubscription={true}
-                  buttonText="Manage Billing Portal"
-                  buttonClassName="w-full justify-start"
-                />
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={handleManageBilling}
+                    disabled={portalLoading}
+                  >
+                    {portalLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Manage Billing Portal
+                  </Button>
+                  {!subscription.cancelAtPeriodEnd && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-destructive hover:text-destructive"
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                    >
+                      Cancel Subscription
+                    </Button>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

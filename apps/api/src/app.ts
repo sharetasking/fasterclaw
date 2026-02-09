@@ -5,6 +5,7 @@ import {
 } from 'fastify-type-provider-zod';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
+import fastifyRawBody from 'fastify-raw-body';
 
 import { corsPlugin, type CorsPluginOptions } from './plugins/cors.js';
 import { cookiePlugin, type CookiePluginOptions } from './plugins/cookie.js';
@@ -89,6 +90,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   await app.register(corsPlugin, options.cors ?? {});
   await app.register(cookiePlugin, options.cookie ?? {});
   await app.register(jwtPlugin, options.jwt ?? {});
+
+  // Register raw body plugin for Stripe webhook signature verification
+  await app.register(fastifyRawBody, {
+    field: 'rawBody',
+    global: false, // Only enable for routes that explicitly request it
+    encoding: false, // Return buffer instead of string
+    runFirst: true, // Run before other content type parsers
+  });
 
   // Register routes
   await app.register(healthRoutes);
