@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import toast from "react-hot-toast";
+import { login } from "@/actions/auth.actions";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -33,19 +34,12 @@ function SignInForm() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const result = await login(formData.email, formData.password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Invalid email or password");
+      if (!result.success) {
+        throw new Error(result.error || "Invalid email or password");
       }
 
-      localStorage.setItem("accessToken", data.accessToken);
       toast.success("Signed in successfully!");
       const from = searchParams.get("from") || "/dashboard";
       router.push(from);
