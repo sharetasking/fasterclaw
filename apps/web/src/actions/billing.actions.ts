@@ -2,21 +2,43 @@
 
 import { cookies } from "next/headers";
 
+export type PlanType = "starter" | "pro" | "enterprise";
+
+export type PlanConfig = {
+  name: string;
+  priceId: string;
+  price: number;
+  instanceLimit: number;
+  features: string[];
+};
+
 export type Subscription = {
   id: string;
-  plan: "starter" | "pro" | "enterprise";
-  status: "active" | "canceled" | "past_due";
+  userId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  status: string;
+  plan: PlanType | null;
+  currentPeriodStart: string | null;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Invoice = {
   id: string;
   amount: number;
-  status: "paid" | "pending" | "failed";
+  status: string;
   createdAt: string;
-  paidAt?: string;
-  invoiceUrl: string;
+  paidAt: string | null;
+  invoiceUrl: string | null;
+  invoicePdf: string | null;
+};
+
+export type SubscriptionResponse = {
+  subscription: Subscription | null;
+  plans: Record<PlanType, PlanConfig>;
 };
 
 async function getAuthToken(): Promise<string | null> {
@@ -24,19 +46,21 @@ async function getAuthToken(): Promise<string | null> {
   return cookieStore.get("auth_token")?.value || null;
 }
 
-export async function getSubscription(): Promise<Subscription | null> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const token = await getAuthToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/subscription`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+export async function getSubscription(): Promise<SubscriptionResponse | null> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/billing/subscription`,
+      { headers }
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch subscription");
@@ -51,17 +75,11 @@ export async function getSubscription(): Promise<Subscription | null> {
 
 export async function getInvoices(): Promise<Invoice[]> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/invoices`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/billing/invoices`,
+      { headers }
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch invoices");
@@ -75,26 +93,22 @@ export async function getInvoices(): Promise<Invoice[]> {
 }
 
 export async function createCheckoutSession(
-  plan: "starter" | "pro" | "enterprise"
+  plan: PlanType
 ): Promise<string | null> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/checkout`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ plan }),
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/billing/checkout`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ plan }),
+      }
+    );
 
     if (!response.ok) {
-      throw new Error("Failed to create checkout session");
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create checkout session");
     }
 
     const data = await response.json();
@@ -107,21 +121,18 @@ export async function createCheckoutSession(
 
 export async function createPortalSession(): Promise<string | null> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/portal`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/billing/portal`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
 
     if (!response.ok) {
-      throw new Error("Failed to create portal session");
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create portal session");
     }
 
     const data = await response.json();
@@ -129,49 +140,5 @@ export async function createPortalSession(): Promise<string | null> {
   } catch (error) {
     console.error("Create portal session error:", error);
     return null;
-  }
-}
-
-export async function cancelSubscription(): Promise<boolean> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/subscription/cancel`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Cancel subscription error:", error);
-    return false;
-  }
-}
-
-export async function resumeSubscription(): Promise<boolean> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/subscription/resume`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Resume subscription error:", error);
-    return false;
   }
 }
