@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Server } from "lucide-react";
+import { ArrowLeft, Server, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { createInstance } from "@/actions/instances.actions";
+import { createInstance, validateTelegramToken } from "@/actions/instances.actions";
 
 const regions = [
   { value: "iad", label: "US East (Virginia)" },
@@ -24,6 +24,13 @@ const models = [
   { value: "claude-haiku-4", label: "Claude Haiku 4", description: "Fastest responses" },
 ];
 
+interface TokenValidation {
+  status: "idle" | "validating" | "valid" | "invalid";
+  botUsername?: string;
+  botName?: string;
+  error?: string;
+}
+
 export default function NewInstancePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -33,12 +40,60 @@ export default function NewInstancePage() {
     aiModel: "claude-sonnet-4",
     telegramBotToken: "",
   });
+  const [tokenValidation, setTokenValidation] = useState<TokenValidation>({
+    status: "idle",
+  });
+
+  // Debounced token validation
+  const validateToken = useCallback(async (token: string) => {
+    if (!token || token.length < 10) {
+      setTokenValidation({ status: "idle" });
+      return;
+    }
+
+    setTokenValidation({ status: "validating" });
+
+    try {
+      const result = await validateTelegramToken(token);
+      if (result.valid) {
+        setTokenValidation({
+          status: "valid",
+          botUsername: result.botUsername,
+          botName: result.botName,
+        });
+      } else {
+        setTokenValidation({
+          status: "invalid",
+          error: result.error || "Invalid token",
+        });
+      }
+    } catch {
+      setTokenValidation({
+        status: "invalid",
+        error: "Failed to validate token",
+      });
+    }
+  }, []);
+
+  // Debounce effect for token validation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      validateToken(formData.telegramBotToken);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.telegramBotToken, validateToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.telegramBotToken.trim()) {
       toast.error("Telegram bot token is required");
+      return;
+    }
+
+    if (tokenValidation.status !== "valid") {
+      toast.error("Please enter a valid Telegram bot token");
       return;
     }
 
@@ -112,14 +167,51 @@ export default function NewInstancePage() {
               {/* Telegram Bot Token */}
               <div className="space-y-2">
                 <Label htmlFor="telegramBotToken">Telegram Bot Token</Label>
-                <Input
-                  id="telegramBotToken"
-                  type="password"
-                  placeholder="e.g., 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                  value={formData.telegramBotToken}
-                  onChange={(e) => setFormData({ ...formData, telegramBotToken: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="telegramBotToken"
+                    type="password"
+                    placeholder="e.g., 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                    value={formData.telegramBotToken}
+                    onChange={(e) => setFormData({ ...formData, telegramBotToken: e.target.value })}
+                    className={
+                      tokenValidation.status === "valid"
+                        ? "border-green-500 pr-10"
+                        : tokenValidation.status === "invalid"
+                        ? "border-red-500 pr-10"
+                        : "pr-10"
+                    }
+                    required
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {tokenValidation.status === "validating" && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    {tokenValidation.status === "valid" && (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    )}
+                    {tokenValidation.status === "invalid" && (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    )}
+                  </div>
+                </div>
+                {tokenValidation.status === "valid" && tokenValidation.botUsername && (
+                  <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-green-700 dark:text-green-300">
+                      Connected to <strong>@{tokenValidation.botUsername}</strong>
+                      {tokenValidation.botName && ` (${tokenValidation.botName})`}
+                    </span>
+                  </div>
+                )}
+                {tokenValidation.status === "invalid" && (
+                  <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
+                    <XCircle className="h-4 w-4 text-red-600" />
+                    <span className="text-sm text-red-700 dark:text-red-300">
+                      {tokenValidation.error || "Invalid bot token"}
+                    </span>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Get this from @BotFather on Telegram. This token will be passed securely to your instance.
                 </p>

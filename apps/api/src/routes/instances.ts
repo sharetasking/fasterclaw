@@ -97,6 +97,62 @@ const instanceListSchema = z.array(instanceSchema);
 export async function instanceRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
+  // POST /instances/validate-telegram-token - Validate a Telegram bot token
+  app.post(
+    '/instances/validate-telegram-token',
+    {
+      schema: {
+        tags: ['Instances'],
+        summary: 'Validate a Telegram bot token',
+        body: z.object({
+          token: z.string().min(1, 'Token is required'),
+        }),
+        response: {
+          200: z.object({
+            valid: z.boolean(),
+            botUsername: z.string().optional(),
+            botName: z.string().optional(),
+            error: z.string().optional(),
+          }),
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const { token } = request.body;
+
+      try {
+        // Call Telegram API to validate token
+        const response = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const data = await response.json() as {
+          ok: boolean;
+          result?: { username: string; first_name: string };
+          description?: string;
+        };
+
+        if (data.ok && data.result) {
+          return reply.send({
+            valid: true,
+            botUsername: data.result.username,
+            botName: data.result.first_name,
+          });
+        } else {
+          return reply.send({
+            valid: false,
+            error: data.description || 'Invalid bot token',
+          });
+        }
+      } catch (error) {
+        app.log.error(error, 'Failed to validate Telegram token');
+        return reply.send({
+          valid: false,
+          error: 'Failed to connect to Telegram API',
+        });
+      }
+    }
+  );
+
   // POST /instances - Create a new instance
   app.post(
     '/instances',

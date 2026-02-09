@@ -217,3 +217,42 @@ export async function restartInstance(id: string): Promise<boolean> {
     return false;
   }
 }
+
+export type TelegramTokenValidation = {
+  valid: boolean;
+  botUsername?: string;
+  botName?: string;
+  error?: string;
+};
+
+export async function validateTelegramToken(
+  telegramToken: string
+): Promise<TelegramTokenValidation> {
+  try {
+    const token = await getAuthToken();
+    if (!token) {
+      return { valid: false, error: "Not authenticated" };
+    }
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances/validate-telegram-token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token: telegramToken }),
+      }
+    );
+
+    if (!response.ok) {
+      return { valid: false, error: "Failed to validate token" };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Validate Telegram token error:", error);
+    return { valid: false, error: "Failed to validate token" };
+  }
+}
