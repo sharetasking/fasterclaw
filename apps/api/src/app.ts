@@ -1,0 +1,101 @@
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import {
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
+
+import { corsPlugin, type CorsPluginOptions } from './plugins/cors.js';
+import { cookiePlugin, type CookiePluginOptions } from './plugins/cookie.js';
+import { jwtPlugin, type JwtPluginOptions } from './plugins/jwt.js';
+import { healthRoutes } from './routes/health.js';
+import { authRoutes } from './routes/auth.js';
+import { instanceRoutes } from './routes/instances.js';
+import { billingRoutes } from './routes/billing.js';
+
+export interface CreateAppOptions {
+  /** Fastify server options */
+  fastify?: FastifyServerOptions;
+  /** CORS plugin options */
+  cors?: CorsPluginOptions;
+  /** Cookie plugin options */
+  cookie?: CookiePluginOptions;
+  /** JWT plugin options */
+  jwt?: JwtPluginOptions;
+}
+
+/**
+ * Create a configured Fastify app with core plugins and routes.
+ */
+export async function createApp(options: CreateAppOptions = {}): Promise<FastifyInstance> {
+  const defaultFastifyOptions: FastifyServerOptions = {
+    logger: process.env.NODE_ENV === 'development'
+      ? {
+          level: process.env.LOG_LEVEL ?? 'info',
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'HH:MM:ss.l',
+              ignore: 'pid,hostname',
+            },
+          },
+        }
+      : {
+          level: process.env.LOG_LEVEL ?? 'info',
+        },
+  };
+
+  const app = Fastify({
+    ...defaultFastifyOptions,
+    ...options.fastify,
+  });
+
+  // Set up Zod validation
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
+  // Register Swagger
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'FasterClaw API',
+        description: 'API for FasterClaw - Deploy OpenClaw instances on Fly.io',
+        version: '0.1.0',
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+    },
+  });
+
+  await app.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+    },
+  });
+
+  // Register plugins
+  await app.register(corsPlugin, options.cors ?? {});
+  await app.register(cookiePlugin, options.cookie ?? {});
+  await app.register(jwtPlugin, options.jwt ?? {});
+
+  // Register routes
+  await app.register(healthRoutes);
+  await app.register(authRoutes);
+  await app.register(instanceRoutes);
+  await app.register(billingRoutes);
+
+  return app;
+}
+
+export default createApp;
