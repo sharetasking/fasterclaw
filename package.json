@@ -1,0 +1,18 @@
+{
+  "name": "fasterclaw",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "db:generate": "pnpm --filter @fasterclaw/db db:generate",
+    "db:migrate": "pnpm --filter @fasterclaw/db db:migrate",
+    "db:push": "pnpm --filter @fasterclaw/db db:push"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
