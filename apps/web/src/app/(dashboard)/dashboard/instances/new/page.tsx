@@ -9,18 +9,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Server } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { createInstance } from "@/actions/instances.actions";
 
 const regions = [
-  { value: "us-east-1", label: "US East (N. Virginia)" },
-  { value: "us-west-2", label: "US West (Oregon)" },
-  { value: "eu-west-1", label: "Europe (Ireland)" },
-  { value: "ap-southeast-1", label: "Asia Pacific (Singapore)" },
+  { value: "iad", label: "US East (Virginia)" },
+  { value: "lax", label: "US West (Los Angeles)" },
+  { value: "lhr", label: "Europe (London)" },
+  { value: "sin", label: "Asia Pacific (Singapore)" },
 ];
 
 const models = [
-  { value: "claude-3-opus", label: "Claude 3 Opus", description: "Most capable model" },
-  { value: "claude-3-sonnet", label: "Claude 3 Sonnet", description: "Balanced performance" },
-  { value: "claude-3-haiku", label: "Claude 3 Haiku", description: "Fastest responses" },
+  { value: "claude-sonnet-4", label: "Claude Sonnet 4", description: "Balanced performance" },
+  { value: "claude-opus-4", label: "Claude Opus 4", description: "Most capable model" },
+  { value: "claude-haiku-4", label: "Claude Haiku 4", description: "Fastest responses" },
 ];
 
 export default function NewInstancePage() {
@@ -28,20 +29,35 @@ export default function NewInstancePage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    region: "us-east-1",
-    model: "claude-3-sonnet",
+    region: "iad",
+    aiModel: "claude-sonnet-4",
+    telegramBotToken: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.telegramBotToken.trim()) {
+      toast.error("Telegram bot token is required");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const result = await createInstance({
+        name: formData.name,
+        region: formData.region,
+        aiModel: formData.aiModel,
+        telegramBotToken: formData.telegramBotToken,
+      });
 
-      toast.success("Instance created successfully!");
-      router.push("/dashboard");
+      if (result) {
+        toast.success("Instance created successfully!");
+        router.push("/dashboard");
+      } else {
+        toast.error("Failed to create instance");
+      }
     } catch (error) {
       toast.error("Failed to create instance");
     } finally {
@@ -93,6 +109,22 @@ export default function NewInstancePage() {
                 </p>
               </div>
 
+              {/* Telegram Bot Token */}
+              <div className="space-y-2">
+                <Label htmlFor="telegramBotToken">Telegram Bot Token</Label>
+                <Input
+                  id="telegramBotToken"
+                  type="password"
+                  placeholder="e.g., 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                  value={formData.telegramBotToken}
+                  onChange={(e) => setFormData({ ...formData, telegramBotToken: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Get this from @BotFather on Telegram. This token will be passed securely to your instance.
+                </p>
+              </div>
+
               {/* Region Selection */}
               <div className="space-y-2">
                 <Label htmlFor="region">Region</Label>
@@ -126,8 +158,8 @@ export default function NewInstancePage() {
                         type="radio"
                         name="model"
                         value={model.value}
-                        checked={formData.model === model.value}
-                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                        checked={formData.aiModel === model.value}
+                        onChange={(e) => setFormData({ ...formData, aiModel: e.target.value })}
                         className="mt-1"
                       />
                       <div>
@@ -164,9 +196,9 @@ export default function NewInstancePage() {
           <CardContent>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
               <li>Your instance will be provisioned in the selected region</li>
-              <li>You'll receive API credentials to start making requests</li>
+              <li>A Fly.io machine will be created with your Telegram bot</li>
               <li>Your instance will be available in approximately 30 seconds</li>
-              <li>You can start sending requests immediately after deployment</li>
+              <li>The bot will start responding to messages on Telegram</li>
             </ol>
           </CardContent>
         </Card>

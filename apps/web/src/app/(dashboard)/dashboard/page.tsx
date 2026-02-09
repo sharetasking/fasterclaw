@@ -3,39 +3,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Server, Activity, Clock } from "lucide-react";
+import { getInstances } from "@/actions/instances.actions";
 
-// Mock data - replace with actual data fetching
-const instances = [
-  {
-    id: "inst_1",
-    name: "Production API",
-    status: "running",
-    region: "us-east-1",
-    requests: "1.2M",
-    uptime: "99.9%",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "inst_2",
-    name: "Development",
-    status: "running",
-    region: "us-west-2",
-    requests: "45K",
-    uptime: "99.8%",
-    createdAt: "2024-01-20",
-  },
-  {
-    id: "inst_3",
-    name: "Staging",
-    status: "stopped",
-    region: "eu-west-1",
-    requests: "12K",
-    uptime: "N/A",
-    createdAt: "2024-01-25",
-  },
-];
+function statusVariant(status: string) {
+  switch (status.toUpperCase()) {
+    case "RUNNING":
+      return "default" as const;
+    case "CREATING":
+    case "PROVISIONING":
+    case "STARTING":
+      return "outline" as const;
+    default:
+      return "secondary" as const;
+  }
+}
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const instances = await getInstances();
+  const runningCount = instances.filter(
+    (i) => i.status.toUpperCase() === "RUNNING"
+  ).length;
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -64,33 +52,33 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{instances.length}</div>
             <p className="text-xs text-muted-foreground">
-              {instances.filter(i => i.status === "running").length} running
+              {runningCount} running
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">Running</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1.3M</div>
+            <div className="text-2xl font-bold">{runningCount}</div>
             <p className="text-xs text-muted-foreground">
-              +12% from last month
+              Active instances
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Uptime</CardTitle>
+            <CardTitle className="text-sm font-medium">Stopped</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">99.9%</div>
+            <div className="text-2xl font-bold">{instances.length - runningCount}</div>
             <p className="text-xs text-muted-foreground">
-              Last 30 days
+              Inactive instances
             </p>
           </CardContent>
         </Card>
@@ -132,14 +120,12 @@ export default function DashboardPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold">{instance.name}</h3>
-                          <Badge
-                            variant={instance.status === "running" ? "default" : "secondary"}
-                          >
-                            {instance.status}
+                          <Badge variant={statusVariant(instance.status)}>
+                            {instance.status.toLowerCase()}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {instance.region} • {instance.requests} requests • {instance.uptime} uptime
+                          {instance.region} &bull; {instance.aiModel}
                         </p>
                       </div>
                     </div>

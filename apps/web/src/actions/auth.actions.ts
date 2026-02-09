@@ -34,7 +34,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
 
     // Set auth token cookie
     const cookieStore = await cookies();
-    cookieStore.set("auth_token", data.token, {
+    cookieStore.set("auth_token", data.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -81,7 +81,7 @@ export async function register(
 
     // Set auth token cookie
     const cookieStore = await cookies();
-    cookieStore.set("auth_token", data.token, {
+    cookieStore.set("auth_token", data.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

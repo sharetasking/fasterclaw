@@ -1,28 +1,137 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Server, Activity, Copy, Power, RefreshCw } from "lucide-react";
+import { ArrowLeft, Server, Activity, Power, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
+import {
+  getInstance,
+  startInstance,
+  stopInstance,
+  deleteInstance,
+  type Instance,
+} from "@/actions/instances.actions";
 
-// Mock data - replace with actual data fetching
-const instanceData = {
-  id: "inst_1",
-  name: "Production API",
-  status: "running",
-  region: "us-east-1",
-  model: "claude-3-sonnet",
-  createdAt: "2024-01-15T10:30:00Z",
-  apiKey: "fc_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  endpoint: "https://inst-1.api.fasterclaw.com/v1",
-  metrics: {
-    requests24h: "45.2K",
-    avgLatency: "124ms",
-    uptime: "99.9%",
-    lastRequest: "2 minutes ago",
-  },
-};
+function statusVariant(status: string) {
+  switch (status.toUpperCase()) {
+    case "RUNNING":
+      return "default" as const;
+    case "CREATING":
+    case "PROVISIONING":
+    case "STARTING":
+      return "outline" as const;
+    case "FAILED":
+      return "destructive" as const;
+    default:
+      return "secondary" as const;
+  }
+}
 
-export default function InstanceDetailPage({ params }: { params: { id: string } }) {
+export default function InstanceDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
+
+  const [instance, setInstance] = useState<Instance | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchInstance = useCallback(async () => {
+    const data = await getInstance(id);
+    if (data) {
+      setInstance(data);
+    }
+    setLoading(false);
+  }, [id]);
+
+  useEffect(() => {
+    fetchInstance();
+  }, [fetchInstance]);
+
+  // Poll for status updates when instance is in a transitional state
+  useEffect(() => {
+    if (!instance) return;
+    const transitional = ["CREATING", "PROVISIONING", "STARTING", "STOPPING"];
+    if (!transitional.includes(instance.status.toUpperCase())) return;
+
+    const interval = setInterval(fetchInstance, 5000);
+    return () => clearInterval(interval);
+  }, [instance, fetchInstance]);
+
+  const handleStart = async () => {
+    setActionLoading("start");
+    const ok = await startInstance(id);
+    if (ok) {
+      toast.success("Instance starting...");
+      await fetchInstance();
+    } else {
+      toast.error("Failed to start instance");
+    }
+    setActionLoading(null);
+  };
+
+  const handleStop = async () => {
+    setActionLoading("stop");
+    const ok = await stopInstance(id);
+    if (ok) {
+      toast.success("Instance stopped");
+      await fetchInstance();
+    } else {
+      toast.error("Failed to stop instance");
+    }
+    setActionLoading(null);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this instance? This action cannot be undone.")) {
+      return;
+    }
+    setActionLoading("delete");
+    const ok = await deleteInstance(id);
+    if (ok) {
+      toast.success("Instance deleted");
+      router.push("/dashboard");
+    } else {
+      toast.error("Failed to delete instance");
+      setActionLoading(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!instance) {
+    return (
+      <div className="p-8">
+        <Link href="/dashboard">
+          <Button variant="ghost" size="sm" className="gap-2 mb-4">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Instances
+          </Button>
+        </Link>
+        <div className="text-center py-12">
+          <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Instance not found</h3>
+          <p className="text-muted-foreground">
+            This instance may have been deleted.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const isRunning = instance.status.toUpperCase() === "RUNNING";
+  const isStopped = instance.status.toUpperCase() === "STOPPED";
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -40,25 +149,49 @@ export default function InstanceDetailPage({ params }: { params: { id: string } 
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-3xl font-bold">{instanceData.name}</h1>
-                <Badge variant={instanceData.status === "running" ? "default" : "secondary"}>
-                  {instanceData.status}
+                <h1 className="text-3xl font-bold">{instance.name}</h1>
+                <Badge variant={statusVariant(instance.status)}>
+                  {instance.status.toLowerCase()}
                 </Badge>
               </div>
               <p className="text-muted-foreground">
-                {instanceData.region} • {instanceData.model}
+                {instance.region} &bull; {instance.aiModel}
               </p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Restart
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Power className="h-4 w-4" />
-              Stop
-            </Button>
+            {isStopped && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleStart}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === "start" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Power className="h-4 w-4" />
+                )}
+                Start
+              </Button>
+            )}
+            {isRunning && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleStop}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === "stop" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Power className="h-4 w-4" />
+                )}
+                Stop
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -66,104 +199,75 @@ export default function InstanceDetailPage({ params }: { params: { id: string } 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Metrics */}
+          {/* Instance Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Instance Information</CardTitle>
+              <CardDescription>
+                Configuration details for this instance
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {instance.flyAppName && (
+                <div>
+                  <div className="text-sm font-medium mb-1">Fly App Name</div>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">
+                    {instance.flyAppName}
+                  </code>
+                </div>
+              )}
+              {instance.flyMachineId && (
+                <div>
+                  <div className="text-sm font-medium mb-1">Machine ID</div>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">
+                    {instance.flyMachineId}
+                  </code>
+                </div>
+              )}
+              {instance.ipAddress && (
+                <div>
+                  <div className="text-sm font-medium mb-1">IP Address</div>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">
+                    {instance.ipAddress}
+                  </code>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Metrics placeholder */}
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Requests (24h)</CardTitle>
+                <CardTitle className="text-sm font-medium">Status</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{instanceData.metrics.requests24h}</div>
+                <div className="text-2xl font-bold capitalize">{instance.status.toLowerCase()}</div>
                 <p className="text-xs text-muted-foreground">
-                  Last request {instanceData.metrics.lastRequest}
+                  Current state
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg Latency</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Region</CardTitle>
+                <Server className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{instanceData.metrics.avgLatency}</div>
+                <div className="text-2xl font-bold">{instance.region}</div>
                 <p className="text-xs text-muted-foreground">
-                  Last 24 hours
+                  Deployment region
                 </p>
               </CardContent>
             </Card>
           </div>
-
-          {/* API Credentials */}
-          <Card>
-            <CardHeader>
-              <CardTitle>API Credentials</CardTitle>
-              <CardDescription>
-                Use these credentials to connect to your instance
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium mb-2 block">API Key</Label>
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={instanceData.apiKey}
-                    className="font-mono text-sm"
-                  />
-                  <Button variant="outline" size="icon">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Keep this key secret and never commit it to version control
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Endpoint</Label>
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={instanceData.endpoint}
-                    className="font-mono text-sm"
-                  />
-                  <Button variant="outline" size="icon">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Usage Example */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Start</CardTitle>
-              <CardDescription>
-                Example code to get started with your instance
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-xs font-mono">
-{`curl ${instanceData.endpoint}/chat \\
-  -H "Authorization: Bearer ${instanceData.apiKey.substring(0, 20)}..." \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "${instanceData.model}",
-    "messages": [
-      {"role": "user", "content": "Hello!"}
-    ]
-  }'`}
-              </pre>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Instance Info */}
+          {/* Instance Details */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Instance Details</CardTitle>
@@ -171,26 +275,28 @@ export default function InstanceDetailPage({ params }: { params: { id: string } 
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <Badge variant={instanceData.status === "running" ? "default" : "secondary"}>
-                  {instanceData.status}
+                <Badge variant={statusVariant(instance.status)}>
+                  {instance.status.toLowerCase()}
                 </Badge>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Region</span>
-                <span className="font-medium">{instanceData.region}</span>
+                <span className="font-medium">{instance.region}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Model</span>
-                <span className="font-medium">{instanceData.model}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Uptime</span>
-                <span className="font-medium">{instanceData.metrics.uptime}</span>
+                <span className="font-medium">{instance.aiModel}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Created</span>
                 <span className="font-medium">
-                  {new Date(instanceData.createdAt).toLocaleDateString()}
+                  {new Date(instance.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Updated</span>
+                <span className="font-medium">
+                  {new Date(instance.updatedAt).toLocaleDateString()}
                 </span>
               </div>
             </CardContent>
@@ -202,15 +308,47 @@ export default function InstanceDetailPage({ params }: { params: { id: string } 
               <CardTitle className="text-base">Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <RefreshCw className="h-4 w-4" />
-                Restart Instance
-              </Button>
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Power className="h-4 w-4" />
-                Stop Instance
-              </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 text-destructive">
+              {isStopped && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={handleStart}
+                  disabled={actionLoading !== null}
+                >
+                  {actionLoading === "start" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="h-4 w-4" />
+                  )}
+                  Start Instance
+                </Button>
+              )}
+              {isRunning && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={handleStop}
+                  disabled={actionLoading !== null}
+                >
+                  {actionLoading === "stop" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="h-4 w-4" />
+                  )}
+                  Stop Instance
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 text-destructive"
+                onClick={handleDelete}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === "delete" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
                 Delete Instance
               </Button>
             </CardContent>
@@ -218,20 +356,5 @@ export default function InstanceDetailPage({ params }: { params: { id: string } 
         </div>
       </div>
     </div>
-  );
-}
-
-function Label({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={className}>{children}</div>;
-}
-
-function Input({ value, readOnly, className }: { value: string; readOnly: boolean; className?: string }) {
-  return (
-    <input
-      type="text"
-      value={value}
-      readOnly={readOnly}
-      className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background ${className}`}
-    />
   );
 }

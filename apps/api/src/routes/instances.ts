@@ -8,13 +8,53 @@ import {
   startMachine,
   stopMachine,
   deleteMachine,
-  deleteApp
+  deleteApp,
+  getMachine,
+  FlyApiError,
 } from '../services/fly.js';
+
+/**
+ * Extract a user-friendly error message from a caught error.
+ */
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof FlyApiError) {
+    if (error.status === 404) return 'Machine not found on Fly.io';
+    if (error.status === 422) return `Invalid configuration: ${error.detail}`;
+    if (error.status === 429) return 'Rate limited by Fly.io, please try again later';
+    return `Fly.io error: ${error.detail}`;
+  }
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+/**
+ * Map Fly.io machine state to our instance status.
+ * Fly states: created, started, stopping, stopped, replacing, destroyed, suspended
+ */
+function mapFlyState(flyState: string): string {
+  switch (flyState) {
+    case 'started':
+      return 'RUNNING';
+    case 'stopped':
+    case 'suspended':
+      return 'STOPPED';
+    case 'destroyed':
+      return 'DELETED';
+    case 'created':
+    case 'replacing':
+    case 'stopping':
+      return 'CREATING';
+    default:
+      return 'UNKNOWN';
+  }
+}
 
 // Zod schemas for request/response validation
 const createInstanceSchema = z.object({
   name: z.string().min(1).max(50),
   region: z.string().default('lax'),
+  telegramBotToken: z.string().min(1, 'Telegram bot token is required'),
+  aiModel: z.string().default('claude-sonnet-4'),
 });
 
 const instanceSchema = z.object({
@@ -26,6 +66,8 @@ const instanceSchema = z.object({
   status: z.string(),
   region: z.string(),
   ipAddress: z.string().nullable(),
+  telegramBotToken: z.string().nullable(),
+  aiModel: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -54,7 +96,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = request.user.id;
-      const { name, region } = request.body;
+      const { name, region, telegramBotToken, aiModel } = request.body;
 
       // Generate unique Fly app name
       const flyAppName = `openclaw-${userId.slice(0, 8)}-${Date.now()}`.toLowerCase();
@@ -67,6 +109,8 @@ export async function instanceRoutes(fastify: FastifyInstance) {
             name,
             flyAppName,
             region,
+            telegramBotToken,
+            aiModel,
             status: 'CREATING',
           },
         });
@@ -74,11 +118,25 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         // Create Fly app and machine in background
         (async () => {
           try {
+            // Step 1: Create Fly app
             await createApp(flyAppName);
+
+            // Step 2: Transition to PROVISIONING
+            await prisma.instance.update({
+              where: { id: instance.id },
+              data: { status: 'PROVISIONING' },
+            });
+
+            // Step 3: Create machine
             const machine = await createMachine(flyAppName, {
               region,
               config: {
                 image: 'ghcr.io/openclaw/openclaw:latest',
+                env: {
+                  TELEGRAM_BOT_TOKEN: telegramBotToken,
+                  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+                  AI_MODEL: aiModel,
+                },
                 services: [
                   {
                     ports: [
@@ -98,6 +156,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
               },
             });
 
+            // Step 4: Machine created, mark as RUNNING
             await prisma.instance.update({
               where: { id: instance.id },
               data: {
@@ -107,7 +166,8 @@ export async function instanceRoutes(fastify: FastifyInstance) {
               },
             });
           } catch (error) {
-            app.log.error(error, 'Failed to create Fly machine');
+            const msg = getErrorMessage(error, 'Unknown provisioning error');
+            app.log.error(error, `Failed to provision instance ${instance.id}: ${msg}`);
             await prisma.instance.update({
               where: { id: instance.id },
               data: { status: 'FAILED' },
@@ -263,7 +323,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to start instance' });
+        return reply.code(400).send({ error: getErrorMessage(error, 'Failed to start instance') });
       }
     }
   );
@@ -326,7 +386,68 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to stop instance' });
+        return reply.code(400).send({ error: getErrorMessage(error, 'Failed to stop instance') });
+      }
+    }
+  );
+
+  // POST /instances/:id/sync - Sync instance status from Fly.io
+  app.post(
+    '/instances/:id/sync',
+    {
+      schema: {
+        tags: ['Instances'],
+        summary: 'Sync instance status from Fly.io',
+        params: z.object({
+          id: z.string(),
+        }),
+        response: {
+          200: instanceSchema,
+          400: z.object({ error: z.string() }),
+          401: z.object({ error: z.string() }),
+          404: z.object({ error: z.string() }),
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const userId = request.user.id;
+      const { id } = request.params;
+
+      const instance = await prisma.instance.findFirst({
+        where: { id, userId },
+      });
+
+      if (!instance) {
+        return reply.code(404).send({ error: 'Instance not found' });
+      }
+
+      if (!instance.flyAppName || !instance.flyMachineId) {
+        return reply.send({
+          ...instance,
+          createdAt: instance.createdAt.toISOString(),
+          updatedAt: instance.updatedAt.toISOString(),
+        });
+      }
+
+      try {
+        const machine = await getMachine(instance.flyAppName, instance.flyMachineId);
+        const newStatus = mapFlyState(machine.state);
+
+        const updatedInstance = await prisma.instance.update({
+          where: { id: instance.id },
+          data: { status: newStatus },
+        });
+
+        return reply.send({
+          ...updatedInstance,
+          createdAt: updatedInstance.createdAt.toISOString(),
+          updatedAt: updatedInstance.updatedAt.toISOString(),
+        });
+      } catch (error) {
+        app.log.error(error, `Failed to sync status for instance ${id}`);
+        return reply.code(400).send({ error: getErrorMessage(error, 'Failed to sync instance status') });
       }
     }
   );
@@ -384,10 +505,47 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to delete instance' });
+        return reply.code(400).send({ error: getErrorMessage(error, 'Failed to delete instance') });
       }
     }
   );
+}
+
+/**
+ * Background job: sync all non-terminal instance statuses from Fly.io.
+ * Call this on an interval (e.g. every 60s) after the server starts.
+ */
+export async function syncAllInstanceStatuses(
+  log?: { info: (...args: any[]) => void; error: (...args: any[]) => void }
+): Promise<void> {
+  const activeStatuses = ['CREATING', 'PROVISIONING', 'RUNNING', 'STARTING', 'STOPPING'];
+
+  const instances = await prisma.instance.findMany({
+    where: {
+      status: { in: activeStatuses },
+      flyAppName: { not: null },
+      flyMachineId: { not: null },
+    },
+  });
+
+  for (const instance of instances) {
+    if (!instance.flyAppName || !instance.flyMachineId) continue;
+
+    try {
+      const machine = await getMachine(instance.flyAppName, instance.flyMachineId);
+      const newStatus = mapFlyState(machine.state);
+
+      if (newStatus !== instance.status) {
+        await prisma.instance.update({
+          where: { id: instance.id },
+          data: { status: newStatus },
+        });
+        log?.info(`Synced instance ${instance.id}: ${instance.status} -> ${newStatus}`);
+      }
+    } catch (error) {
+      log?.error(`Failed to sync instance ${instance.id}: ${error}`);
+    }
+  }
 }
 
 export default instanceRoutes;
