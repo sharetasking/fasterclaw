@@ -6,11 +6,15 @@ import {
   stripe,
   getOrCreateStripeCustomer,
   verifyWebhookSignature,
+  PLANS,
+  getPlanFromPriceId,
+  getPriceIdForPlan,
+  type PlanType,
 } from '../services/stripe.js';
 
 // Zod schemas for request/response validation
 const createCheckoutSessionSchema = z.object({
-  priceId: z.string(),
+  plan: z.enum(['starter', 'pro', 'enterprise']),
 });
 
 const checkoutSessionResponseSchema = z.object({
@@ -23,6 +27,7 @@ const subscriptionSchema = z.object({
   stripeCustomerId: z.string(),
   stripeSubscriptionId: z.string(),
   status: z.string(),
+  plan: z.enum(['starter', 'pro', 'enterprise']).nullable(),
   currentPeriodStart: z.string().nullable(),
   currentPeriodEnd: z.string(),
   cancelAtPeriodEnd: z.boolean(),
@@ -30,8 +35,17 @@ const subscriptionSchema = z.object({
   updatedAt: z.string(),
 });
 
+const planConfigSchema = z.object({
+  name: z.string(),
+  priceId: z.string(),
+  price: z.number(),
+  instanceLimit: z.number(),
+  features: z.array(z.string()),
+});
+
 const subscriptionResponseSchema = z.object({
   subscription: subscriptionSchema.nullable(),
+  plans: z.record(z.enum(['starter', 'pro', 'enterprise']), planConfigSchema),
 });
 
 export async function billingRoutes(fastify: FastifyInstance) {
@@ -56,7 +70,12 @@ export async function billingRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = request.user.id;
-      const { priceId } = request.body;
+      const { plan } = request.body;
+
+      const priceId = getPriceIdForPlan(plan);
+      if (!priceId) {
+        return reply.code(400).send({ error: `No price ID configured for plan: ${plan}. Please set STRIPE_PRICE_ID_${plan.toUpperCase()} environment variable.` });
+      }
 
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -86,14 +105,110 @@ export async function billingRoutes(fastify: FastifyInstance) {
             quantity: 1,
           },
         ],
-        success_url: `${baseUrl}/dashboard?success=true`,
+        success_url: `${baseUrl}/dashboard/billing?success=true`,
         cancel_url: `${baseUrl}/pricing?canceled=true`,
         metadata: {
           userId,
+          plan,
         },
       });
 
       return { url: session.url! };
+    }
+  );
+
+  // POST /billing/portal - Create Stripe Customer Portal session
+  app.post(
+    '/billing/portal',
+    {
+      schema: {
+        tags: ['Billing'],
+        summary: 'Create Stripe Customer Portal session',
+        response: {
+          200: z.object({ url: z.string() }),
+          400: z.object({ error: z.string() }),
+          401: z.object({ error: z.string() }),
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const userId = request.user.id;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { stripeCustomerId: true },
+      });
+
+      if (!user?.stripeCustomerId) {
+        return reply.code(400).send({ error: 'No Stripe customer found' });
+      }
+
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${baseUrl}/dashboard/billing`,
+      });
+
+      return { url: session.url };
+    }
+  );
+
+  // GET /billing/invoices - Get invoice history
+  app.get(
+    '/billing/invoices',
+    {
+      schema: {
+        tags: ['Billing'],
+        summary: 'Get invoice history from Stripe',
+        response: {
+          200: z.array(
+            z.object({
+              id: z.string(),
+              amount: z.number(),
+              status: z.string(),
+              createdAt: z.string(),
+              paidAt: z.string().nullable(),
+              invoiceUrl: z.string().nullable(),
+              invoicePdf: z.string().nullable(),
+            })
+          ),
+          401: z.object({ error: z.string() }),
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const userId = request.user.id;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { stripeCustomerId: true },
+      });
+
+      if (!user?.stripeCustomerId) {
+        return [];
+      }
+
+      const invoices = await stripe.invoices.list({
+        customer: user.stripeCustomerId,
+        limit: 10,
+      });
+
+      return invoices.data.map((invoice) => ({
+        id: invoice.id,
+        amount: (invoice.amount_paid || 0) / 100, // Convert from cents
+        status: invoice.status || 'unknown',
+        createdAt: new Date(invoice.created * 1000).toISOString(),
+        paidAt: invoice.status_transitions?.paid_at
+          ? new Date(invoice.status_transitions.paid_at * 1000).toISOString()
+          : null,
+        invoiceUrl: invoice.hosted_invoice_url || null,
+        invoicePdf: invoice.invoice_pdf || null,
+      }));
     }
   );
 
@@ -128,8 +243,14 @@ export async function billingRoutes(fastify: FastifyInstance) {
       if (!subscription) {
         return {
           subscription: null,
+          plans: PLANS,
         };
       }
+
+      // Get plan from stripePriceId or fall back to stored plan
+      const plan = subscription.stripePriceId
+        ? getPlanFromPriceId(subscription.stripePriceId)
+        : (subscription.plan as PlanType | null);
 
       return {
         subscription: {
@@ -138,12 +259,14 @@ export async function billingRoutes(fastify: FastifyInstance) {
           stripeCustomerId: subscription.stripeCustomerId,
           stripeSubscriptionId: subscription.stripeSubscriptionId,
           status: subscription.status,
+          plan,
           currentPeriodStart: subscription.currentPeriodStart?.toISOString() ?? null,
           currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
           cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
           createdAt: subscription.createdAt.toISOString(),
           updatedAt: subscription.updatedAt.toISOString(),
         },
+        plans: PLANS,
       };
     }
   );
@@ -184,6 +307,7 @@ export async function billingRoutes(fastify: FastifyInstance) {
         case 'checkout.session.completed': {
           const session = event.data.object as any;
           const userId = session.metadata?.userId;
+          const plan = session.metadata?.plan as PlanType | undefined;
 
           if (!userId) {
             break;
@@ -193,10 +317,18 @@ export async function billingRoutes(fastify: FastifyInstance) {
             const subscriptionId = session.subscription as string;
             const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
+            // Get the price ID from the subscription items
+            const priceId = subscription.items.data[0]?.price?.id;
+            const resolvedPlan = plan || (priceId ? getPlanFromPriceId(priceId) : null);
+            const instanceLimit = resolvedPlan ? PLANS[resolvedPlan].instanceLimit : 1;
+
             await prisma.subscription.upsert({
               where: { stripeSubscriptionId: subscriptionId },
               update: {
                 status: subscription.status.toUpperCase() as any,
+                stripePriceId: priceId,
+                plan: resolvedPlan,
+                instanceLimit,
                 currentPeriodStart: new Date(subscription.current_period_start * 1000),
                 currentPeriodEnd: new Date(subscription.current_period_end * 1000),
                 cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
@@ -205,6 +337,9 @@ export async function billingRoutes(fastify: FastifyInstance) {
                 userId,
                 stripeCustomerId: subscription.customer as string,
                 stripeSubscriptionId: subscriptionId,
+                stripePriceId: priceId,
+                plan: resolvedPlan,
+                instanceLimit,
                 status: subscription.status.toUpperCase() as any,
                 currentPeriodStart: new Date(subscription.current_period_start * 1000),
                 currentPeriodEnd: new Date(subscription.current_period_end * 1000),

@@ -6,6 +6,77 @@ import { prisma } from '@fasterclaw/db';
  * Handles Stripe integration for billing and subscriptions
  */
 
+// Plan configuration - maps price IDs to plan details
+export type PlanType = 'starter' | 'pro' | 'enterprise';
+
+export interface PlanConfig {
+  name: string;
+  priceId: string;
+  price: number;
+  instanceLimit: number;
+  features: string[];
+}
+
+export const PLANS: Record<PlanType, PlanConfig> = {
+  starter: {
+    name: 'Starter',
+    priceId: process.env.STRIPE_PRICE_ID_STARTER || '',
+    price: 39,
+    instanceLimit: 2,
+    features: [
+      'Up to 100K requests/month',
+      '2 Claude instances',
+      'Basic analytics',
+      'Email support',
+    ],
+  },
+  pro: {
+    name: 'Pro',
+    priceId: process.env.STRIPE_PRICE_ID_PRO || '',
+    price: 79,
+    instanceLimit: 10,
+    features: [
+      'Up to 1M requests/month',
+      '10 Claude instances',
+      'Advanced analytics',
+      'Priority support',
+      'Team collaboration',
+    ],
+  },
+  enterprise: {
+    name: 'Enterprise',
+    priceId: process.env.STRIPE_PRICE_ID_ENTERPRISE || '',
+    price: 149,
+    instanceLimit: -1, // unlimited
+    features: [
+      'Unlimited requests',
+      'Unlimited instances',
+      'Custom analytics',
+      '24/7 dedicated support',
+      'SLA guarantee',
+    ],
+  },
+};
+
+/**
+ * Get plan type from Stripe price ID
+ */
+export function getPlanFromPriceId(priceId: string): PlanType | null {
+  for (const [planType, config] of Object.entries(PLANS)) {
+    if (config.priceId === priceId) {
+      return planType as PlanType;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get price ID for a plan type
+ */
+export function getPriceIdForPlan(plan: PlanType): string {
+  return PLANS[plan].priceId;
+}
+
 let stripeInstance: Stripe | null = null;
 
 /**

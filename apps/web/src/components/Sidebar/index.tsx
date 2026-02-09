@@ -9,6 +9,7 @@ import NavLink from "./NavLink";
 import { navigation } from "./navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import UserMenu from "@/components/UserMenu";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -86,9 +87,10 @@ const Sidebar = ({ visible, onClose }: Props) => {
           ))}
         </nav>
 
-        {/* Theme Toggle */}
-        <div className="space-y-4">
+        {/* User Menu & Theme Toggle */}
+        <div className="space-y-2">
           <Separator />
+          <UserMenu collapsed={collapsed} />
           <Button
             variant="ghost"
             onClick={handleThemeToggle}

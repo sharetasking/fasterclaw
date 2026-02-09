@@ -4,20 +4,20 @@ import { cookies } from "next/headers";
 
 export type Instance = {
   id: string;
+  userId: string;
   name: string;
-  status: "running" | "stopped" | "starting" | "stopping";
+  flyAppName: string | null;
+  flyMachineId: string | null;
+  status: string;
   region: string;
-  model: string;
-  apiKey: string;
-  endpoint: string;
+  ipAddress: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 export type CreateInstanceInput = {
   name: string;
-  region: string;
-  model: string;
+  region?: string;
 };
 
 async function getAuthToken(): Promise<string | null> {
@@ -25,19 +25,21 @@ async function getAuthToken(): Promise<string | null> {
   return cookieStore.get("auth_token")?.value || null;
 }
 
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const token = await getAuthToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export async function getInstances(): Promise<Instance[]> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances`,
+      { headers }
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch instances");
@@ -52,17 +54,11 @@ export async function getInstances(): Promise<Instance[]> {
 
 export async function getInstance(id: string): Promise<Instance | null> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`,
+      { headers }
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch instance");
@@ -75,25 +71,23 @@ export async function getInstance(id: string): Promise<Instance | null> {
   }
 }
 
-export async function createInstance(input: CreateInstanceInput): Promise<Instance | null> {
+export async function createInstance(
+  input: CreateInstanceInput
+): Promise<Instance | null> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(input),
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(input),
+      }
+    );
 
     if (!response.ok) {
-      throw new Error("Failed to create instance");
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create instance");
     }
 
     return await response.json();
@@ -103,73 +97,16 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
   }
 }
 
-export async function updateInstance(
-  id: string,
-  updates: Partial<CreateInstanceInput>
-): Promise<Instance | null> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to update instance");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Update instance error:", error);
-    return null;
-  }
-}
-
-export async function deleteInstance(id: string): Promise<boolean> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Delete instance error:", error);
-    return false;
-  }
-}
-
 export async function startInstance(id: string): Promise<boolean> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/start`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/start`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
 
     return response.ok;
   } catch (error) {
@@ -180,18 +117,14 @@ export async function startInstance(id: string): Promise<boolean> {
 
 export async function stopInstance(id: string): Promise<boolean> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/stop`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/stop`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
 
     return response.ok;
   } catch (error) {
@@ -200,24 +133,20 @@ export async function stopInstance(id: string): Promise<boolean> {
   }
 }
 
-export async function restartInstance(id: string): Promise<boolean> {
+export async function deleteInstance(id: string): Promise<boolean> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    // TODO: Replace with actual API call to Fastify backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/restart`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`,
+      {
+        method: "DELETE",
+        headers,
+      }
+    );
 
     return response.ok;
   } catch (error) {
-    console.error("Restart instance error:", error);
+    console.error("Delete instance error:", error);
     return false;
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { setAuthToken } from "@/actions/auth.actions";
 
 function CallbackHandler() {
   const router = useRouter();
@@ -18,10 +19,12 @@ function CallbackHandler() {
     }
 
     if (token) {
-      // Store the token
-      localStorage.setItem("accessToken", token);
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Store the token in an httpOnly cookie via server action
+      setAuthToken(token).then(() => {
+        router.push("/dashboard");
+      }).catch(() => {
+        router.push("/sign-in?error=token_storage_failed");
+      });
     } else {
       router.push("/sign-in?error=no_token");
     }

@@ -1,12 +1,7 @@
 export const navigation = [
   {
-    title: "Dashboard",
-    icon: "Home",
-    href: "/dashboard",
-  },
-  {
-    title: "Instances",
-    icon: "Server",
+    title: "My Agents",
+    icon: "Bot",
     href: "/dashboard",
   },
   {

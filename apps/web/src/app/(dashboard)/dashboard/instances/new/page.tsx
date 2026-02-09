@@ -5,22 +5,30 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Server } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ArrowLeft, Server, Loader2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { createInstance } from "@/actions/instances.actions";
 
+// Fly.io regions
 const regions = [
-  { value: "us-east-1", label: "US East (N. Virginia)" },
-  { value: "us-west-2", label: "US West (Oregon)" },
-  { value: "eu-west-1", label: "Europe (Ireland)" },
-  { value: "ap-southeast-1", label: "Asia Pacific (Singapore)" },
-];
-
-const models = [
-  { value: "claude-3-opus", label: "Claude 3 Opus", description: "Most capable model" },
-  { value: "claude-3-sonnet", label: "Claude 3 Sonnet", description: "Balanced performance" },
-  { value: "claude-3-haiku", label: "Claude 3 Haiku", description: "Fastest responses" },
+  { value: "lax", label: "Los Angeles (lax)" },
+  { value: "iad", label: "Washington, D.C. (iad)" },
+  { value: "ord", label: "Chicago (ord)" },
+  { value: "sjc", label: "San Jose (sjc)" },
+  { value: "lhr", label: "London (lhr)" },
+  { value: "ams", label: "Amsterdam (ams)" },
+  { value: "fra", label: "Frankfurt (fra)" },
+  { value: "nrt", label: "Tokyo (nrt)" },
+  { value: "sin", label: "Singapore (sin)" },
+  { value: "syd", label: "Sydney (syd)" },
 ];
 
 export default function NewInstancePage() {
@@ -28,8 +36,7 @@ export default function NewInstancePage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    region: "us-east-1",
-    model: "claude-3-sonnet",
+    region: "lax",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,11 +44,17 @@ export default function NewInstancePage() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const instance = await createInstance({
+        name: formData.name,
+        region: formData.region,
+      });
 
-      toast.success("Instance created successfully!");
-      router.push("/dashboard");
+      if (instance) {
+        toast.success("Instance created successfully!");
+        router.push(`/dashboard/instances/${instance.id}`);
+      } else {
+        toast.error("Failed to create instance");
+      }
     } catch (error) {
       toast.error("Failed to create instance");
     } finally {
@@ -61,7 +74,7 @@ export default function NewInstancePage() {
         </Link>
         <h1 className="text-3xl font-bold">Create New Instance</h1>
         <p className="text-muted-foreground mt-1">
-          Deploy a new Claude AI instance in under a minute
+          Deploy a new OpenClaw instance on Fly.io
         </p>
       </div>
 
@@ -73,7 +86,7 @@ export default function NewInstancePage() {
               Instance Configuration
             </CardTitle>
             <CardDescription>
-              Configure your Claude AI instance settings
+              Configure your OpenClaw instance settings
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,13 +96,17 @@ export default function NewInstancePage() {
                 <Label htmlFor="name">Instance Name</Label>
                 <Input
                   id="name"
-                  placeholder="e.g., Production API"
+                  placeholder="e.g., Production Bot"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  maxLength={50}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Choose a descriptive name for your instance
+                  Choose a descriptive name for your instance (max 50
+                  characters)
                 </p>
               </div>
 
@@ -100,7 +117,9 @@ export default function NewInstancePage() {
                   id="region"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={formData.region}
-                  onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, region: e.target.value })
+                  }
                 >
                   {regions.map((region) => (
                     <option key={region.value} value={region.value}>
@@ -113,37 +132,14 @@ export default function NewInstancePage() {
                 </p>
               </div>
 
-              {/* Model Selection */}
-              <div className="space-y-2">
-                <Label>Model</Label>
-                <div className="space-y-2">
-                  {models.map((model) => (
-                    <label
-                      key={model.value}
-                      className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                    >
-                      <input
-                        type="radio"
-                        name="model"
-                        value={model.value}
-                        checked={formData.model === model.value}
-                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                        className="mt-1"
-                      />
-                      <div>
-                        <div className="font-medium">{model.label}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {model.description}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
               {/* Actions */}
               <div className="flex gap-4 pt-4">
-                <Button type="submit" disabled={loading} className="flex-1">
+                <Button
+                  type="submit"
+                  disabled={loading || !formData.name}
+                  className="flex-1"
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {loading ? "Creating Instance..." : "Create Instance"}
                 </Button>
                 <Link href="/dashboard" className="flex-1">
@@ -163,10 +159,10 @@ export default function NewInstancePage() {
           </CardHeader>
           <CardContent>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-              <li>Your instance will be provisioned in the selected region</li>
-              <li>You'll receive API credentials to start making requests</li>
-              <li>Your instance will be available in approximately 30 seconds</li>
-              <li>You can start sending requests immediately after deployment</li>
+              <li>A Fly.io app will be created in the selected region</li>
+              <li>An OpenClaw machine will be deployed to your app</li>
+              <li>Your instance will be ready in approximately 30-60 seconds</li>
+              <li>You can monitor the status from the instance detail page</li>
             </ol>
           </CardContent>
         </Card>
