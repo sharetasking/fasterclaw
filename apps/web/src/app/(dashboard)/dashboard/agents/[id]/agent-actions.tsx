@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +13,18 @@ type AgentActionsProps = {
   status: string;
 };
 
+const TRANSITIONAL_STATUSES = ["CREATING", "PROVISIONING", "STARTING", "STOPPING"];
+
 export function AgentActions({ agentId, status }: AgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+
+  // Poll for status updates when agent is in a transitional state
+  useEffect(() => {
+    if (!TRANSITIONAL_STATUSES.includes(status)) return;
+    const interval = setInterval(() => router.refresh(), 5000);
+    return () => clearInterval(interval);
+  }, [status, router]);
 
   const handleStart = async () => {
     setLoading("start");
