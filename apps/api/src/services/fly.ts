@@ -5,21 +5,20 @@
  * API Documentation: https://fly.io/docs/machines/api/
  */
 
-const FLY_API_BASE = 'https://api.machines.dev/v1';
-const FLY_API_TOKEN = process.env.FLY_API_TOKEN;
+const FLY_API_BASE = "https://api.machines.dev/v1";
 
 interface MachineConfig {
   region: string;
   config: {
     image: string;
-    services?: Array<{
-      ports: Array<{
+    services?: {
+      ports: {
         port: number;
         handlers?: string[];
-      }>;
+      }[];
       protocol: string;
       internal_port: number;
-    }>;
+    }[];
     env?: Record<string, string>;
   };
 }
@@ -31,34 +30,41 @@ interface Machine {
   region: string;
   instance_id: string;
   private_ip: string;
-  config: any;
+  config: MachineConfig["config"];
   created_at: string;
 }
 
 /**
  * Make a request to the Fly.io Machines API
  */
-async function flyRequest(
-  path: string,
-  options: RequestInit = {}
-): Promise<any> {
-  if (!FLY_API_TOKEN) {
-    throw new Error('FLY_API_TOKEN environment variable is required');
+async function flyRequest(path: string, options: RequestInit = {}): Promise<unknown> {
+  const flyApiToken = process.env.FLY_API_TOKEN;
+  if (flyApiToken === undefined || flyApiToken === "") {
+    throw new Error("FLY_API_TOKEN environment variable is required");
   }
 
   const url = `${FLY_API_BASE}${path}`;
+  const baseHeaders: Record<string, string> = {
+    Authorization: `Bearer ${flyApiToken}`,
+    "Content-Type": "application/json",
+  };
+
+  // Merge additional headers if provided as a plain object
+  const mergedHeaders =
+    options.headers !== undefined &&
+    typeof options.headers === "object" &&
+    !Array.isArray(options.headers)
+      ? { ...baseHeaders, ...(options.headers as Record<string, string>) }
+      : baseHeaders;
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Authorization': `Bearer ${FLY_API_TOKEN}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers: mergedHeaders,
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Fly.io API error: ${response.status} ${error}`);
+    throw new Error(`Fly.io API error: ${String(response.status)} ${error}`);
   }
 
   return response.json();
@@ -68,11 +74,11 @@ async function flyRequest(
  * Create a new Fly app
  */
 export async function createApp(name: string): Promise<void> {
-  await flyRequest('/apps', {
-    method: 'POST',
+  await flyRequest("/apps", {
+    method: "POST",
     body: JSON.stringify({
       app_name: name,
-      org_slug: process.env.FLY_ORG_SLUG || 'personal',
+      org_slug: process.env.FLY_ORG_SLUG ?? "personal",
     }),
   });
 }
@@ -80,55 +86,41 @@ export async function createApp(name: string): Promise<void> {
 /**
  * Create a new machine in a Fly app
  */
-export async function createMachine(
-  appName: string,
-  config: MachineConfig
-): Promise<Machine> {
-  const response = await flyRequest(`/apps/${appName}/machines`, {
-    method: 'POST',
+export async function createMachine(appName: string, config: MachineConfig): Promise<Machine> {
+  return flyRequest(`/apps/${appName}/machines`, {
+    method: "POST",
     body: JSON.stringify({
       name: `${appName}-machine`,
       region: config.region,
       config: config.config,
     }),
-  });
-
-  return response;
+  }) as Promise<Machine>;
 }
 
 /**
  * Start a stopped machine
  */
-export async function startMachine(
-  appName: string,
-  machineId: string
-): Promise<void> {
+export async function startMachine(appName: string, machineId: string): Promise<void> {
   await flyRequest(`/apps/${appName}/machines/${machineId}/start`, {
-    method: 'POST',
+    method: "POST",
   });
 }
 
 /**
  * Stop a running machine
  */
-export async function stopMachine(
-  appName: string,
-  machineId: string
-): Promise<void> {
+export async function stopMachine(appName: string, machineId: string): Promise<void> {
   await flyRequest(`/apps/${appName}/machines/${machineId}/stop`, {
-    method: 'POST',
+    method: "POST",
   });
 }
 
 /**
  * Delete a machine
  */
-export async function deleteMachine(
-  appName: string,
-  machineId: string
-): Promise<void> {
+export async function deleteMachine(appName: string, machineId: string): Promise<void> {
   await flyRequest(`/apps/${appName}/machines/${machineId}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
@@ -137,23 +129,20 @@ export async function deleteMachine(
  */
 export async function deleteApp(appName: string): Promise<void> {
   await flyRequest(`/apps/${appName}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
 /**
  * Get machine status
  */
-export async function getMachine(
-  appName: string,
-  machineId: string
-): Promise<Machine> {
-  return flyRequest(`/apps/${appName}/machines/${machineId}`);
+export async function getMachine(appName: string, machineId: string): Promise<Machine> {
+  return flyRequest(`/apps/${appName}/machines/${machineId}`) as Promise<Machine>;
 }
 
 /**
  * List all machines in an app
  */
 export async function listMachines(appName: string): Promise<Machine[]> {
-  return flyRequest(`/apps/${appName}/machines`);
+  return flyRequest(`/apps/${appName}/machines`) as Promise<Machine[]>;
 }

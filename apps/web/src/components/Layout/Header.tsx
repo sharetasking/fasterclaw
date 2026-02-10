@@ -3,9 +3,9 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type Props = {
+interface Props {
   onOpen: () => void;
-};
+}
 
 const Header = ({ onOpen }: Props) => {
   return (

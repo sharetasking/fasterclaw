@@ -1,52 +1,38 @@
-import type { FastifyInstance } from 'fastify';
-import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
-import { prisma } from '@fasterclaw/db';
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { z } from "zod";
+import { prisma } from "@fasterclaw/db";
 import {
   createApp,
   createMachine,
   startMachine,
   stopMachine,
   deleteMachine,
-  deleteApp
-} from '../services/fly.js';
+  deleteApp,
+} from "../services/fly.js";
+import {
+  CreateInstanceRequestSchema,
+  InstanceSchema,
+  InstanceListSchema,
+  ApiErrorSchema,
+  ApiSuccessSchema,
+} from "@fasterclaw/shared";
 
-// Zod schemas for request/response validation
-const createInstanceSchema = z.object({
-  name: z.string().min(1).max(50),
-  region: z.string().default('lax'),
-});
-
-const instanceSchema = z.object({
-  id: z.string(),
-  userId: z.string(),
-  name: z.string(),
-  flyAppName: z.string().nullable(),
-  flyMachineId: z.string().nullable(),
-  status: z.string(),
-  region: z.string(),
-  ipAddress: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-const instanceListSchema = z.array(instanceSchema);
-
-export async function instanceRoutes(fastify: FastifyInstance) {
+export function instanceRoutes(fastify: FastifyInstance): void {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   // POST /instances - Create a new instance
   app.post(
-    '/instances',
+    "/instances",
     {
       schema: {
-        tags: ['Instances'],
-        summary: 'Create a new OpenClaw instance',
-        body: createInstanceSchema,
+        tags: ["Instances"],
+        summary: "Create a new OpenClaw instance",
+        body: CreateInstanceRequestSchema,
         response: {
-          201: instanceSchema,
-          400: z.object({ error: z.string() }),
-          401: z.object({ error: z.string() }),
+          201: InstanceSchema,
+          400: ApiErrorSchema,
+          401: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -57,7 +43,7 @@ export async function instanceRoutes(fastify: FastifyInstance) {
       const { name, region } = request.body;
 
       // Generate unique Fly app name
-      const flyAppName = `openclaw-${userId.slice(0, 8)}-${Date.now()}`.toLowerCase();
+      const flyAppName = `openclaw-${userId.slice(0, 8)}-${String(Date.now())}`.toLowerCase();
 
       try {
         // Create instance record first
@@ -67,31 +53,31 @@ export async function instanceRoutes(fastify: FastifyInstance) {
             name,
             flyAppName,
             region,
-            status: 'CREATING',
+            status: "CREATING",
           },
         });
 
         // Create Fly app and machine in background
-        (async () => {
+        void (async () => {
           try {
             await createApp(flyAppName);
             const machine = await createMachine(flyAppName, {
               region,
               config: {
-                image: 'ghcr.io/openclaw/openclaw:latest',
+                image: "ghcr.io/openclaw/openclaw:latest",
                 services: [
                   {
                     ports: [
                       {
                         port: 80,
-                        handlers: ['http'],
+                        handlers: ["http"],
                       },
                       {
                         port: 443,
-                        handlers: ['tls', 'http'],
+                        handlers: ["tls", "http"],
                       },
                     ],
-                    protocol: 'tcp',
+                    protocol: "tcp",
                     internal_port: 8080,
                   },
                 ],
@@ -103,40 +89,40 @@ export async function instanceRoutes(fastify: FastifyInstance) {
               data: {
                 flyMachineId: machine.id,
                 ipAddress: machine.private_ip,
-                status: 'RUNNING',
+                status: "RUNNING",
               },
             });
-          } catch (error) {
-            app.log.error(error, 'Failed to create Fly machine');
+          } catch (error: unknown) {
+            app.log.error(error, "Failed to create Fly machine");
             await prisma.instance.update({
               where: { id: instance.id },
-              data: { status: 'FAILED' },
+              data: { status: "FAILED" },
             });
           }
         })();
 
-        return reply.code(201).send({
+        return await reply.code(201).send({
           ...instance,
           createdAt: instance.createdAt.toISOString(),
           updatedAt: instance.updatedAt.toISOString(),
         });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to create instance' });
+        return reply.code(400).send({ error: "Failed to create instance" });
       }
     }
   );
 
   // GET /instances - List user's instances
   app.get(
-    '/instances',
+    "/instances",
     {
       schema: {
-        tags: ['Instances'],
-        summary: 'List all instances for the authenticated user',
+        tags: ["Instances"],
+        summary: "List all instances for the authenticated user",
         response: {
-          200: instanceListSchema,
-          401: z.object({ error: z.string() }),
+          200: InstanceListSchema,
+          401: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -148,9 +134,9 @@ export async function instanceRoutes(fastify: FastifyInstance) {
       const instances = await prisma.instance.findMany({
         where: {
           userId,
-          status: { not: 'DELETED' },
+          status: { not: "DELETED" },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
       return reply.send(
@@ -165,18 +151,18 @@ export async function instanceRoutes(fastify: FastifyInstance) {
 
   // GET /instances/:id - Get instance by ID
   app.get(
-    '/instances/:id',
+    "/instances/:id",
     {
       schema: {
-        tags: ['Instances'],
-        summary: 'Get an instance by ID',
+        tags: ["Instances"],
+        summary: "Get an instance by ID",
         params: z.object({
           id: z.string(),
         }),
         response: {
-          200: instanceSchema,
-          401: z.object({ error: z.string() }),
-          404: z.object({ error: z.string() }),
+          200: InstanceSchema,
+          401: ApiErrorSchema,
+          404: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -193,8 +179,8 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!instance) {
-        return reply.code(404).send({ error: 'Instance not found' });
+      if (instance === null) {
+        return reply.code(404).send({ error: "Instance not found" });
       }
 
       return reply.send({
@@ -207,19 +193,19 @@ export async function instanceRoutes(fastify: FastifyInstance) {
 
   // POST /instances/:id/start - Start an instance
   app.post(
-    '/instances/:id/start',
+    "/instances/:id/start",
     {
       schema: {
-        tags: ['Instances'],
-        summary: 'Start a stopped instance',
+        tags: ["Instances"],
+        summary: "Start a stopped instance",
         params: z.object({
           id: z.string(),
         }),
         response: {
-          200: instanceSchema,
-          400: z.object({ error: z.string() }),
-          401: z.object({ error: z.string() }),
-          404: z.object({ error: z.string() }),
+          200: InstanceSchema,
+          400: ApiErrorSchema,
+          401: ApiErrorSchema,
+          404: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -236,16 +222,21 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!instance) {
-        return reply.code(404).send({ error: 'Instance not found' });
+      if (instance === null) {
+        return reply.code(404).send({ error: "Instance not found" });
       }
 
-      if (instance.status !== 'STOPPED') {
-        return reply.code(400).send({ error: 'Instance is not stopped' });
+      if (instance.status !== "STOPPED") {
+        return reply.code(400).send({ error: "Instance is not stopped" });
       }
 
-      if (!instance.flyMachineId || !instance.flyAppName) {
-        return reply.code(400).send({ error: 'No machine ID or app name found' });
+      if (
+        instance.flyMachineId === null ||
+        instance.flyMachineId === "" ||
+        instance.flyAppName === null ||
+        instance.flyAppName === ""
+      ) {
+        return reply.code(400).send({ error: "No machine ID or app name found" });
       }
 
       try {
@@ -253,36 +244,36 @@ export async function instanceRoutes(fastify: FastifyInstance) {
 
         const updatedInstance = await prisma.instance.update({
           where: { id: instance.id },
-          data: { status: 'RUNNING' },
+          data: { status: "RUNNING" },
         });
 
-        return reply.send({
+        return await reply.send({
           ...updatedInstance,
           createdAt: updatedInstance.createdAt.toISOString(),
           updatedAt: updatedInstance.updatedAt.toISOString(),
         });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to start instance' });
+        return reply.code(400).send({ error: "Failed to start instance" });
       }
     }
   );
 
   // POST /instances/:id/stop - Stop an instance
   app.post(
-    '/instances/:id/stop',
+    "/instances/:id/stop",
     {
       schema: {
-        tags: ['Instances'],
-        summary: 'Stop a running instance',
+        tags: ["Instances"],
+        summary: "Stop a running instance",
         params: z.object({
           id: z.string(),
         }),
         response: {
-          200: instanceSchema,
-          400: z.object({ error: z.string() }),
-          401: z.object({ error: z.string() }),
-          404: z.object({ error: z.string() }),
+          200: InstanceSchema,
+          400: ApiErrorSchema,
+          401: ApiErrorSchema,
+          404: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -299,16 +290,21 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!instance) {
-        return reply.code(404).send({ error: 'Instance not found' });
+      if (instance === null) {
+        return reply.code(404).send({ error: "Instance not found" });
       }
 
-      if (instance.status !== 'RUNNING') {
-        return reply.code(400).send({ error: 'Instance is not running' });
+      if (instance.status !== "RUNNING") {
+        return reply.code(400).send({ error: "Instance is not running" });
       }
 
-      if (!instance.flyMachineId || !instance.flyAppName) {
-        return reply.code(400).send({ error: 'No machine ID or app name found' });
+      if (
+        instance.flyMachineId === null ||
+        instance.flyMachineId === "" ||
+        instance.flyAppName === null ||
+        instance.flyAppName === ""
+      ) {
+        return reply.code(400).send({ error: "No machine ID or app name found" });
       }
 
       try {
@@ -316,36 +312,36 @@ export async function instanceRoutes(fastify: FastifyInstance) {
 
         const updatedInstance = await prisma.instance.update({
           where: { id: instance.id },
-          data: { status: 'STOPPED' },
+          data: { status: "STOPPED" },
         });
 
-        return reply.send({
+        return await reply.send({
           ...updatedInstance,
           createdAt: updatedInstance.createdAt.toISOString(),
           updatedAt: updatedInstance.updatedAt.toISOString(),
         });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to stop instance' });
+        return reply.code(400).send({ error: "Failed to stop instance" });
       }
     }
   );
 
   // DELETE /instances/:id - Delete an instance
   app.delete(
-    '/instances/:id',
+    "/instances/:id",
     {
       schema: {
-        tags: ['Instances'],
-        summary: 'Delete an instance',
+        tags: ["Instances"],
+        summary: "Delete an instance",
         params: z.object({
           id: z.string(),
         }),
         response: {
-          200: z.object({ success: z.boolean() }),
-          400: z.object({ error: z.string() }),
-          401: z.object({ error: z.string() }),
-          404: z.object({ error: z.string() }),
+          200: ApiSuccessSchema,
+          400: ApiErrorSchema,
+          401: ApiErrorSchema,
+          404: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -362,14 +358,14 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!instance) {
-        return reply.code(404).send({ error: 'Instance not found' });
+      if (instance === null) {
+        return reply.code(404).send({ error: "Instance not found" });
       }
 
       try {
         // Delete Fly machine and app if they exist
-        if (instance.flyAppName) {
-          if (instance.flyMachineId) {
+        if (instance.flyAppName !== null && instance.flyAppName !== "") {
+          if (instance.flyMachineId !== null && instance.flyMachineId !== "") {
             await deleteMachine(instance.flyAppName, instance.flyMachineId);
           }
           await deleteApp(instance.flyAppName);
@@ -378,13 +374,13 @@ export async function instanceRoutes(fastify: FastifyInstance) {
         // Mark instance as deleted
         await prisma.instance.update({
           where: { id: instance.id },
-          data: { status: 'DELETED' },
+          data: { status: "DELETED" },
         });
 
-        return reply.send({ success: true });
+        return await reply.send({ success: true });
       } catch (error) {
         app.log.error(error);
-        return reply.code(400).send({ error: 'Failed to delete instance' });
+        return reply.code(400).send({ error: "Failed to delete instance" });
       }
     }
   );

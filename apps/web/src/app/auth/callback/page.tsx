@@ -13,18 +13,20 @@ function CallbackHandler() {
     const token = searchParams.get("token");
     const error = searchParams.get("error");
 
-    if (error) {
+    if (error != null && error !== "") {
       router.push(`/sign-in?error=${error}`);
       return;
     }
 
-    if (token) {
+    if (token != null && token !== "") {
       // Store the token in an httpOnly cookie via server action
-      setAuthToken(token).then(() => {
-        router.push("/dashboard");
-      }).catch(() => {
-        router.push("/sign-in?error=token_storage_failed");
-      });
+      setAuthToken(token)
+        .then(() => {
+          router.push("/dashboard");
+        })
+        .catch(() => {
+          router.push("/sign-in?error=token_storage_failed");
+        });
     } else {
       router.push("/sign-in?error=no_token");
     }

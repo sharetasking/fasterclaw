@@ -51,24 +51,28 @@ src/
 ## Features
 
 ### Landing Page
+
 - Hero section with CTAs
 - Features showcase
 - Pricing tiers ($39/$79/$149)
 - Responsive design
 
 ### Authentication
+
 - Sign in page
 - Create account page
 - Password validation
 - Cookie-based auth
 
 ### Dashboard
+
 - Instance list with stats
 - Create new instance wizard
 - Instance detail view with metrics
 - Settings page (profile, password, API keys)
 
 ### Components
+
 - Collapsible sidebar with theme toggle
 - Responsive layout
 - Dark mode support
@@ -101,6 +105,7 @@ The app connects to the Fastify backend API. Server actions in `src/actions/` ha
 - Billing (checkout, subscriptions, invoices)
 
 API client helper (`src/lib/api.ts`) provides:
+
 - Type-safe API calls
 - Automatic auth token handling
 - Error handling
@@ -108,18 +113,21 @@ API client helper (`src/lib/api.ts`) provides:
 ## Navigation
 
 **Sidebar navigation:**
+
 - Dashboard (home icon) → `/dashboard`
 - Instances (server icon) → `/dashboard`
 - Billing (credit-card icon) → `/dashboard/billing`
 - Settings (settings icon) → `/dashboard/settings`
 
 **Public routes:**
+
 - `/` - Landing page
 - `/sign-in` - Sign in
 - `/create-account` - Registration
 - `/pricing` - Pricing page
 
 **Protected routes:**
+
 - `/dashboard` - Instance list
 - `/dashboard/instances/new` - Create instance
 - `/dashboard/instances/[id]` - Instance details

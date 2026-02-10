@@ -1,9 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-// Public routes that don't require authentication
-const PUBLIC_ROUTES = ["/", "/sign-in", "/create-account", "/pricing"];
-
 // Auth routes that redirect to dashboard if already authenticated
 const AUTH_ROUTES = ["/sign-in", "/create-account"];
 
@@ -11,17 +8,16 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("auth_token")?.value;
 
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname === route);
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route);
   const isDashboardRoute = pathname.startsWith("/dashboard");
 
   // Redirect authenticated users from auth pages to dashboard
-  if (isAuthRoute && token) {
+  if (isAuthRoute && token !== undefined && token !== "") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Redirect unauthenticated users from protected routes to sign in
-  if (isDashboardRoute && !token) {
+  if (isDashboardRoute && (token === undefined || token === "")) {
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(signInUrl);

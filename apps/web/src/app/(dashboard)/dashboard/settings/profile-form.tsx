@@ -19,28 +19,30 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: user.name || "",
+    name: user.name ?? "",
     email: user.email,
   });
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const result = await updateProfile(profileData.name);
-      if (result.success) {
-        toast.success("Profile updated successfully");
-        router.refresh();
-      } else {
-        toast.error(result.error || "Failed to update profile");
+    void (async () => {
+      try {
+        const result = await updateProfile(profileData.name);
+        if (result.success) {
+          toast.success("Profile updated successfully");
+          router.refresh();
+        } else {
+          toast.error(result.error ?? "Failed to update profile");
+        }
+      } catch {
+        toast.error("Failed to update profile");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      toast.error("Failed to update profile");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   return (
@@ -50,25 +52,17 @@ export function ProfileForm({ user }: ProfileFormProps) {
         <Input
           id="name"
           value={profileData.name}
-          onChange={(e) =>
-            setProfileData({ ...profileData, name: e.target.value })
-          }
+          onChange={(e) => {
+            setProfileData({ ...profileData, name: e.target.value });
+          }}
           required
         />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={profileData.email}
-          disabled
-          className="bg-muted"
-        />
-        <p className="text-xs text-muted-foreground">
-          Email cannot be changed at this time
-        </p>
+        <Input id="email" type="email" value={profileData.email} disabled className="bg-muted" />
+        <p className="text-xs text-muted-foreground">Email cannot be changed at this time</p>
       </div>
 
       <Button type="submit" disabled={loading}>

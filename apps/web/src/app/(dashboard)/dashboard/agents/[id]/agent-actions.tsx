@@ -8,52 +8,58 @@ import { Play, Square, Trash2 } from "lucide-react";
 import { startInstance, stopInstance, deleteInstance } from "@/actions/instances.actions";
 import toast from "react-hot-toast";
 
-type AgentActionsProps = {
+interface AgentActionsProps {
   agentId: string;
   status: string;
-};
+}
 
 export function AgentActions({ agentId, status }: AgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleStart = async () => {
-    setLoading("start");
-    const success = await startInstance(agentId);
-    if (success) {
-      toast.success("Agent started!");
-      router.refresh();
-    } else {
-      toast.error("Failed to start agent");
-    }
-    setLoading(null);
+  const handleStart = () => {
+    void (async () => {
+      setLoading("start");
+      const success = await startInstance(agentId);
+      if (success) {
+        toast.success("Agent started!");
+        router.refresh();
+      } else {
+        toast.error("Failed to start agent");
+      }
+      setLoading(null);
+    })();
   };
 
-  const handleStop = async () => {
-    setLoading("stop");
-    const success = await stopInstance(agentId);
-    if (success) {
-      toast.success("Agent paused");
-      router.refresh();
-    } else {
-      toast.error("Failed to pause agent");
-    }
-    setLoading(null);
+  const handleStop = () => {
+    void (async () => {
+      setLoading("stop");
+      const success = await stopInstance(agentId);
+      if (success) {
+        toast.success("Agent paused");
+        router.refresh();
+      } else {
+        toast.error("Failed to pause agent");
+      }
+      setLoading(null);
+    })();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!confirm("Are you sure you want to delete this agent? This cannot be undone.")) {
       return;
     }
-    setLoading("delete");
-    const success = await deleteInstance(agentId);
-    if (success) {
-      toast.success("Agent deleted");
-      router.push("/dashboard");
-    } else {
-      toast.error("Failed to delete agent");
-    }
-    setLoading(null);
+    void (async () => {
+      setLoading("delete");
+      const success = await deleteInstance(agentId);
+      if (success) {
+        toast.success("Agent deleted");
+        router.push("/dashboard");
+      } else {
+        toast.error("Failed to delete agent");
+      }
+      setLoading(null);
+    })();
   };
 
   const isRunning = status === "RUNNING";

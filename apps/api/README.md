@@ -5,6 +5,7 @@ Fastify-based API for FasterClaw - Deploy and manage OpenClaw instances on Fly.i
 ## Architecture
 
 This API is built following patterns from Launchier's core API:
+
 - Contract-first development with Zod schemas
 - Type-safe routes using `fastify-type-provider-zod`
 - JWT authentication with Bearer tokens
@@ -38,14 +39,17 @@ apps/api/
 ## API Endpoints
 
 ### Health
+
 - `GET /health` - Health check
 
 ### Authentication
+
 - `POST /auth/register` - Create account (email, password, name)
 - `POST /auth/login` - Login, returns JWT
 - `GET /auth/me` - Get current user (protected)
 
 ### Instances
+
 All instance routes require authentication (`Authorization: Bearer <token>`)
 
 - `POST /instances` - Create new OpenClaw instance
@@ -56,6 +60,7 @@ All instance routes require authentication (`Authorization: Bearer <token>`)
 - `DELETE /instances/:id` - Delete instance
 
 ### Billing
+
 - `POST /billing/checkout` - Create Stripe checkout session
 - `GET /billing/subscription` - Get subscription status (protected)
 - `POST /billing/webhook` - Stripe webhook handler
@@ -63,6 +68,7 @@ All instance routes require authentication (`Authorization: Bearer <token>`)
 ## Environment Variables
 
 Required:
+
 - `API_JWT_SECRET` - Secret for signing JWTs
 - `DATABASE_URL` - PostgreSQL connection string
 - `STRIPE_SECRET_KEY` - Stripe secret key
@@ -70,6 +76,7 @@ Required:
 - `FLY_API_TOKEN` - Fly.io API token
 
 Optional:
+
 - `PORT` - Server port (default: 3001)
 - `HOST` - Server host (default: 0.0.0.0)
 - `NODE_ENV` - Environment (development/production)
@@ -99,6 +106,7 @@ pnpm typecheck
 ## API Documentation
 
 Once the server is running, visit:
+
 - Swagger UI: http://localhost:3001/docs
 - Health check: http://localhost:3001/health
 
@@ -112,6 +120,7 @@ Once the server is running, visit:
 ## Fly.io Integration
 
 The Fly.io service (`src/services/fly.ts`) provides methods to:
+
 - `createApp(name)` - Create a Fly app
 - `createMachine(appName, config)` - Create machine with OpenClaw image
 - `startMachine(appName, machineId)` - Start stopped machine
@@ -122,13 +131,16 @@ The Fly.io service (`src/services/fly.ts`) provides methods to:
 ## Stripe Integration
 
 The Stripe service (`src/services/stripe.ts`) handles:
+
 - Customer creation and management
 - Checkout session creation
 - Webhook signature verification
 - Subscription lifecycle events
 
 ### Webhook Events
+
 The API handles these Stripe webhook events:
+
 - `checkout.session.completed` - Create subscription record
 - `customer.subscription.updated` - Update subscription status
 - `customer.subscription.deleted` - Mark subscription as canceled
@@ -138,6 +150,7 @@ The API handles these Stripe webhook events:
 ## Database
 
 The API uses Prisma client from `@fasterclaw/db` workspace package. Required models:
+
 - `User` - User accounts with authentication
 - `Instance` - OpenClaw instances
 - `Subscription` - Stripe subscriptions
@@ -145,6 +158,7 @@ The API uses Prisma client from `@fasterclaw/db` workspace package. Required mod
 ## Type Safety
 
 All routes use Zod schemas for request/response validation:
+
 - Request bodies are validated automatically
 - Response schemas ensure type safety
 - TypeScript types are inferred from Zod schemas
@@ -152,6 +166,7 @@ All routes use Zod schemas for request/response validation:
 ## Error Handling
 
 Standard HTTP error responses:
+
 - `400` - Bad request (validation errors)
 - `401` - Unauthorized (missing/invalid token)
 - `404` - Not found

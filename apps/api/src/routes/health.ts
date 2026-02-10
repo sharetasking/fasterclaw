@@ -1,16 +1,16 @@
-import type { FastifyInstance } from 'fastify';
-import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { z } from "zod";
 
-export async function healthRoutes(fastify: FastifyInstance) {
+export function healthRoutes(fastify: FastifyInstance): void {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   app.get(
-    '/health',
+    "/health",
     {
       schema: {
-        tags: ['Health'],
-        summary: 'Health check endpoint',
+        tags: ["Health"],
+        summary: "Health check endpoint",
         response: {
           200: z.object({
             status: z.string(),
@@ -19,9 +19,9 @@ export async function healthRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    async () => {
+    () => {
       return {
-        status: 'ok',
+        status: "ok",
         timestamp: new Date().toISOString(),
       };
     }

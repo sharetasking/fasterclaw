@@ -11,16 +11,19 @@ Prisma-based database package for FasterClaw - a managed OpenClaw hosting servic
 ## Setup
 
 1. Set your DATABASE_URL environment variable:
+
 ```bash
 export DATABASE_URL="postgresql://user:password@localhost:5432/fasterclaw"
 ```
 
 2. Generate the Prisma Client:
+
 ```bash
 pnpm db:generate
 ```
 
 3. Run migrations:
+
 ```bash
 pnpm db:migrate
 ```
@@ -36,14 +39,14 @@ pnpm db:migrate
 ## Usage
 
 ```typescript
-import { prisma } from '@fasterclaw/db';
+import { prisma } from "@fasterclaw/db";
 
 // Create a user
 const user = await prisma.user.create({
   data: {
-    email: 'user@example.com',
+    email: "user@example.com",
     passwordHash: hashedPassword,
-    name: 'John Doe',
+    name: "John Doe",
   },
 });
 
@@ -51,8 +54,8 @@ const user = await prisma.user.create({
 const instance = await prisma.instance.create({
   data: {
     userId: user.id,
-    name: 'My Bot',
-    telegramBotToken: 'token',
+    name: "My Bot",
+    telegramBotToken: "token",
   },
 });
 ```

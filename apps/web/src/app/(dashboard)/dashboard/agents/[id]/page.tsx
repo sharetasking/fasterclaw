@@ -19,11 +19,11 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const agent = await getInstance(id);
 
-  if (!agent) {
+  if (agent === null) {
     redirect("/dashboard");
   }
 
-  const status = statusConfig[agent.status as keyof typeof statusConfig] || statusConfig.STOPPED;
+  const status = statusConfig[agent.status as keyof typeof statusConfig];
 
   return (
     <div className="p-8">
@@ -73,10 +73,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                     {agent.status === "RUNNING"
                       ? "Your agent is active and responding to messages"
                       : agent.status === "CREATING"
-                      ? "Your agent is being set up..."
-                      : agent.status === "FAILED"
-                      ? "Something went wrong. Try deleting and creating a new agent."
-                      : "Your agent is paused and not responding to messages"}
+                        ? "Your agent is being set up..."
+                        : agent.status === "FAILED"
+                          ? "Something went wrong. Try deleting and creating a new agent."
+                          : "Your agent is paused and not responding to messages"}
                   </p>
                 </div>
               </div>

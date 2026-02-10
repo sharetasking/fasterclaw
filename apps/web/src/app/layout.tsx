@@ -10,7 +10,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "FasterClaw - Deploy Claude AI in Under 1 Minute",
-  description: "Deploy Claude AI instances instantly with FasterClaw. Production-ready infrastructure, automatic scaling, and enterprise-grade security.",
+  description:
+    "Deploy Claude AI instances instantly with FasterClaw. Production-ready infrastructure, automatic scaling, and enterprise-grade security.",
 };
 
 export default function RootLayout({

@@ -1,0 +1,15 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+pnpm-lock.yaml
+*.min.js
+*.min.css
+packages/db/prisma/generated
+packages/openclaw/assets
+packages/openclaw/vendor
+packages/openclaw/Swabble
+packages/openclaw/extensions
+packages/openclaw/skills
+packages/openclaw/patches

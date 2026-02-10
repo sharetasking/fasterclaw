@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import {
-  createCheckoutSession,
-  createPortalSession,
-  type PlanType,
-} from "@/actions/billing.actions";
+import { createCheckoutSession, createPortalSession } from "@/actions/billing.actions";
+import { type CreateCheckoutRequest } from "@fasterclaw/api-client";
+
+type PlanType = CreateCheckoutRequest["plan"];
 
 interface BillingActionsProps {
   hasSubscription: boolean;
@@ -26,32 +25,36 @@ export function BillingActions({
 }: BillingActionsProps) {
   const [loading, setLoading] = useState(false);
 
-  const handleCheckout = async (plan: PlanType) => {
+  const handleCheckout = (plan: PlanType) => {
     setLoading(true);
-    try {
-      const url = await createCheckoutSession(plan);
-      if (url) {
-        window.location.href = url;
+    void (async () => {
+      try {
+        const url = await createCheckoutSession(plan);
+        if (url !== null) {
+          window.location.href = url;
+        }
+      } catch (error) {
+        console.error("Checkout error:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Checkout error:", error);
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
-  const handlePortal = async () => {
+  const handlePortal = () => {
     setLoading(true);
-    try {
-      const url = await createPortalSession();
-      if (url) {
-        window.location.href = url;
+    void (async () => {
+      try {
+        const url = await createPortalSession();
+        if (url !== null) {
+          window.location.href = url;
+        }
+      } catch (error) {
+        console.error("Portal error:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Portal error:", error);
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   // Portal-only mode
@@ -64,7 +67,7 @@ export function BillingActions({
         className={buttonClassName}
       >
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {buttonText || "Update Payment Method"}
+        {buttonText ?? "Update Payment Method"}
       </Button>
     );
   }
@@ -75,7 +78,9 @@ export function BillingActions({
       <Button
         variant="outline"
         className="w-full"
-        onClick={() => handleCheckout(planToSelect)}
+        onClick={() => {
+          handleCheckout(planToSelect);
+        }}
         disabled={loading}
       >
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

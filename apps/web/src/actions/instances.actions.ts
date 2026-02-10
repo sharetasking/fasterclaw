@@ -1,51 +1,30 @@
 "use server";
 
-import { cookies } from "next/headers";
+import {
+  getInstances as getInstancesApi,
+  getInstancesById,
+  postInstances,
+  postInstancesByIdStart,
+  postInstancesByIdStop,
+  deleteInstancesById,
+  type Instance,
+  type CreateInstanceRequest,
+} from "@fasterclaw/api-client";
+import { createAuthenticatedClient } from "@/lib/api-client";
 
-export type Instance = {
-  id: string;
-  userId: string;
-  name: string;
-  flyAppName: string | null;
-  flyMachineId: string | null;
-  status: string;
-  region: string;
-  ipAddress: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CreateInstanceInput = {
-  name: string;
-  region?: string;
-};
-
-async function getAuthToken(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get("auth_token")?.value || null;
-}
-
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const token = await getAuthToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+// NOTE: Types are NOT re-exported from Server Actions files.
+// Import types directly from @fasterclaw/api-client instead.
 
 export async function getInstances(): Promise<Instance[]> {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances`,
-      { headers }
-    );
+    const client = await createAuthenticatedClient();
+    const { data } = await getInstancesApi({ client });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch instances");
+    if (!data) {
+      return [];
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Get instances error:", error);
     return [];
@@ -54,43 +33,36 @@ export async function getInstances(): Promise<Instance[]> {
 
 export async function getInstance(id: string): Promise<Instance | null> {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`,
-      { headers }
-    );
+    const client = await createAuthenticatedClient();
+    const { data } = await getInstancesById({
+      client,
+      path: { id },
+    });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch instance");
+    if (!data) {
+      return null;
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Get instance error:", error);
     return null;
   }
 }
 
-export async function createInstance(
-  input: CreateInstanceInput
-): Promise<Instance | null> {
+export async function createInstance(input: CreateInstanceRequest): Promise<Instance | null> {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify(input),
-      }
-    );
+    const client = await createAuthenticatedClient();
+    const { data } = await postInstances({
+      client,
+      body: input,
+    });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to create instance");
+    if (!data) {
+      return null;
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Create instance error:", error);
     return null;
@@ -99,16 +71,13 @@ export async function createInstance(
 
 export async function startInstance(id: string): Promise<boolean> {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/start`,
-      {
-        method: "POST",
-        headers,
-      }
-    );
+    const client = await createAuthenticatedClient();
+    const { error } = await postInstancesByIdStart({
+      client,
+      path: { id },
+    });
 
-    return response.ok;
+    return !error;
   } catch (error) {
     console.error("Start instance error:", error);
     return false;
@@ -117,16 +86,13 @@ export async function startInstance(id: string): Promise<boolean> {
 
 export async function stopInstance(id: string): Promise<boolean> {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/stop`,
-      {
-        method: "POST",
-        headers,
-      }
-    );
+    const client = await createAuthenticatedClient();
+    const { error } = await postInstancesByIdStop({
+      client,
+      path: { id },
+    });
 
-    return response.ok;
+    return !error;
   } catch (error) {
     console.error("Stop instance error:", error);
     return false;
@@ -135,16 +101,13 @@ export async function stopInstance(id: string): Promise<boolean> {
 
 export async function deleteInstance(id: string): Promise<boolean> {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`,
-      {
-        method: "DELETE",
-        headers,
-      }
-    );
+    const client = await createAuthenticatedClient();
+    const { error } = await deleteInstancesById({
+      client,
+      path: { id },
+    });
 
-    return response.ok;
+    return !error;
   } catch (error) {
     console.error("Delete instance error:", error);
     return false;

@@ -1,5 +1,5 @@
-import Stripe from 'stripe';
-import { prisma } from '@fasterclaw/db';
+import Stripe from "stripe";
+import { prisma } from "@fasterclaw/db";
 
 /**
  * Stripe Service
@@ -7,7 +7,7 @@ import { prisma } from '@fasterclaw/db';
  */
 
 // Plan configuration - maps price IDs to plan details
-export type PlanType = 'starter' | 'pro' | 'enterprise';
+export type PlanType = "starter" | "pro" | "enterprise";
 
 export interface PlanConfig {
   name: string;
@@ -19,41 +19,41 @@ export interface PlanConfig {
 
 export const PLANS: Record<PlanType, PlanConfig> = {
   starter: {
-    name: 'Starter',
-    priceId: process.env.STRIPE_PRICE_ID_STARTER || '',
+    name: "Starter",
+    priceId: process.env.STRIPE_PRICE_ID_STARTER ?? "",
     price: 39,
     instanceLimit: 2,
     features: [
-      'Up to 100K requests/month',
-      '2 Claude instances',
-      'Basic analytics',
-      'Email support',
+      "Up to 100K requests/month",
+      "2 Claude instances",
+      "Basic analytics",
+      "Email support",
     ],
   },
   pro: {
-    name: 'Pro',
-    priceId: process.env.STRIPE_PRICE_ID_PRO || '',
+    name: "Pro",
+    priceId: process.env.STRIPE_PRICE_ID_PRO ?? "",
     price: 79,
     instanceLimit: 10,
     features: [
-      'Up to 1M requests/month',
-      '10 Claude instances',
-      'Advanced analytics',
-      'Priority support',
-      'Team collaboration',
+      "Up to 1M requests/month",
+      "10 Claude instances",
+      "Advanced analytics",
+      "Priority support",
+      "Team collaboration",
     ],
   },
   enterprise: {
-    name: 'Enterprise',
-    priceId: process.env.STRIPE_PRICE_ID_ENTERPRISE || '',
+    name: "Enterprise",
+    priceId: process.env.STRIPE_PRICE_ID_ENTERPRISE ?? "",
     price: 149,
     instanceLimit: -1, // unlimited
     features: [
-      'Unlimited requests',
-      'Unlimited instances',
-      'Custom analytics',
-      '24/7 dedicated support',
-      'SLA guarantee',
+      "Unlimited requests",
+      "Unlimited instances",
+      "Custom analytics",
+      "24/7 dedicated support",
+      "SLA guarantee",
     ],
   },
 };
@@ -83,22 +83,24 @@ let stripeInstance: Stripe | null = null;
  * Get Stripe instance (lazy initialization)
  */
 function getStripe(): Stripe {
-  if (!stripeInstance) {
+  if (stripeInstance === null) {
     const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
+    if (secretKey === undefined || secretKey === "") {
       // In development, use a placeholder key to allow the app to start
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️  STRIPE_SECRET_KEY not set. Using placeholder. Stripe operations will fail.');
-        stripeInstance = new Stripe('sk_test_placeholder_key_for_development', {
-          apiVersion: '2025-02-24.acacia',
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "⚠️  STRIPE_SECRET_KEY not set. Using placeholder. Stripe operations will fail."
+        );
+        stripeInstance = new Stripe("sk_test_placeholder_key_for_development", {
+          apiVersion: "2025-02-24.acacia",
           typescript: true,
         });
       } else {
-        throw new Error('STRIPE_SECRET_KEY environment variable is required');
+        throw new Error("STRIPE_SECRET_KEY environment variable is required");
       }
     } else {
       stripeInstance = new Stripe(secretKey, {
-        apiVersion: '2025-02-24.acacia',
+        apiVersion: "2025-02-24.acacia",
         typescript: true,
       });
     }
@@ -120,8 +122,9 @@ export async function getOrCreateStripeCustomer(
   email: string,
   name?: string
 ): Promise<string> {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY environment variable is required for billing operations');
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (stripeKey === undefined || stripeKey === "") {
+    throw new Error("STRIPE_SECRET_KEY environment variable is required for billing operations");
   }
 
   const user = await prisma.user.findUnique({
@@ -129,14 +132,18 @@ export async function getOrCreateStripeCustomer(
     select: { stripeCustomerId: true },
   });
 
-  if (user?.stripeCustomerId) {
+  if (
+    user?.stripeCustomerId !== null &&
+    user?.stripeCustomerId !== undefined &&
+    user.stripeCustomerId !== ""
+  ) {
     return user.stripeCustomerId;
   }
 
   // Create new Stripe customer
   const customer = await getStripe().customers.create({
     email,
-    name: name || undefined,
+    name: name ?? undefined,
     metadata: {
       userId,
     },
@@ -154,17 +161,11 @@ export async function getOrCreateStripeCustomer(
 /**
  * Verify Stripe webhook signature
  */
-export function verifyWebhookSignature(
-  payload: string | Buffer,
-  signature: string
-): Stripe.Event {
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    throw new Error('STRIPE_WEBHOOK_SECRET environment variable is required');
+export function verifyWebhookSignature(payload: string | Buffer, signature: string): Stripe.Event {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (webhookSecret === undefined || webhookSecret === "") {
+    throw new Error("STRIPE_WEBHOOK_SECRET environment variable is required");
   }
 
-  return getStripe().webhooks.constructEvent(
-    payload,
-    signature,
-    process.env.STRIPE_WEBHOOK_SECRET
-  );
+  return getStripe().webhooks.constructEvent(payload, signature, webhookSecret);
 }

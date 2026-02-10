@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Bot, Sparkles } from "lucide-react";
 import { getInstances } from "@/actions/instances.actions";
@@ -51,9 +45,7 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">My Agents</h1>
-          <p className="text-muted-foreground mt-1">
-            Your AI assistants
-          </p>
+          <p className="text-muted-foreground mt-1">Your AI assistants</p>
         </div>
         <Link href="/dashboard/agents/new">
           <Button className="gap-2">
@@ -67,24 +59,18 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Live Agents
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Live Agents</CardTitle>
             <Sparkles className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{liveAgents}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently active
-            </p>
+            <p className="text-xs text-muted-foreground">Currently active</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Agents
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
             <Bot className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -98,9 +84,7 @@ export default async function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Your Agents</CardTitle>
-          <CardDescription>
-            Click on an agent to view details and settings
-          </CardDescription>
+          <CardDescription>Click on an agent to view details and settings</CardDescription>
         </CardHeader>
         <CardContent>
           {agents.length === 0 ? (
@@ -117,15 +101,9 @@ export default async function DashboardPage() {
           ) : (
             <div className="space-y-4">
               {agents.map((agent) => {
-                const status =
-                  statusConfig[agent.status as keyof typeof statusConfig] ||
-                  statusConfig.STOPPED;
+                const status = statusConfig[agent.status as keyof typeof statusConfig];
                 return (
-                  <Link
-                    key={agent.id}
-                    href={`/dashboard/agents/${agent.id}`}
-                    className="block"
-                  >
+                  <Link key={agent.id} href={`/dashboard/agents/${agent.id}`} className="block">
                     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -135,15 +113,12 @@ export default async function DashboardPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{agent.name}</h3>
                             <Badge variant={status.variant} className="gap-1.5">
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${status.dot}`}
-                              />
+                              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                               {status.label}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Created{" "}
-                            {new Date(agent.createdAt).toLocaleDateString()}
+                            Created {new Date(agent.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>

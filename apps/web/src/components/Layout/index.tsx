@@ -6,9 +6,9 @@ import Header from "./Header";
 import { SidebarProvider, useSidebar } from "../Sidebar/SidebarContext";
 import { cn } from "@/lib/utils";
 
-type Props = {
+interface Props {
   children: React.ReactNode;
-};
+}
 
 const LayoutContent = ({ children }: Props) => {
   const [visible, setVisible] = useState(false);
@@ -23,8 +23,17 @@ const LayoutContent = ({ children }: Props) => {
         isHydrated ? "opacity-100" : "opacity-0"
       )}
     >
-      <Header onOpen={() => setVisible(true)} />
-      <Sidebar visible={visible} onClose={() => setVisible(false)} />
+      <Header
+        onOpen={() => {
+          setVisible(true);
+        }}
+      />
+      <Sidebar
+        visible={visible}
+        onClose={() => {
+          setVisible(false);
+        }}
+      />
 
       {/* Overlay for mobile */}
       <div
@@ -32,7 +41,9 @@ const LayoutContent = ({ children }: Props) => {
           "fixed inset-0 z-30 bg-black/50 transition-opacity lg:hidden",
           visible ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
-        onClick={() => setVisible(false)}
+        onClick={() => {
+          setVisible(false);
+        }}
       />
 
       {children}

@@ -15,7 +15,7 @@ export function PasswordForm() {
     confirmPassword: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -30,26 +30,25 @@ export function PasswordForm() {
 
     setLoading(true);
 
-    try {
-      const result = await updatePassword(
-        passwordData.currentPassword,
-        passwordData.newPassword
-      );
-      if (result.success) {
-        toast.success("Password updated successfully");
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-      } else {
-        toast.error(result.error || "Failed to update password");
+    void (async () => {
+      try {
+        const result = await updatePassword(passwordData.currentPassword, passwordData.newPassword);
+        if (result.success) {
+          toast.success("Password updated successfully");
+          setPasswordData({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+          });
+        } else {
+          toast.error(result.error ?? "Failed to update password");
+        }
+      } catch {
+        toast.error("Failed to update password");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      toast.error("Failed to update password");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   return (
@@ -60,9 +59,9 @@ export function PasswordForm() {
           id="currentPassword"
           type="password"
           value={passwordData.currentPassword}
-          onChange={(e) =>
-            setPasswordData({ ...passwordData, currentPassword: e.target.value })
-          }
+          onChange={(e) => {
+            setPasswordData({ ...passwordData, currentPassword: e.target.value });
+          }}
           required
         />
       </div>
@@ -73,9 +72,9 @@ export function PasswordForm() {
           id="newPassword"
           type="password"
           value={passwordData.newPassword}
-          onChange={(e) =>
-            setPasswordData({ ...passwordData, newPassword: e.target.value })
-          }
+          onChange={(e) => {
+            setPasswordData({ ...passwordData, newPassword: e.target.value });
+          }}
           required
         />
       </div>
@@ -86,12 +85,12 @@ export function PasswordForm() {
           id="confirmPassword"
           type="password"
           value={passwordData.confirmPassword}
-          onChange={(e) =>
+          onChange={(e) => {
             setPasswordData({
               ...passwordData,
               confirmPassword: e.target.value,
-            })
-          }
+            });
+          }}
           required
         />
       </div>
