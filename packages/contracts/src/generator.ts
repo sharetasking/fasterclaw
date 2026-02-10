@@ -21,7 +21,10 @@ import {
   InstanceSchema,
   InstanceListSchema,
   CreateInstanceRequestSchema,
+  UpdateInstanceRequestSchema,
   InstanceIdParamSchema,
+  ValidateTelegramTokenRequestSchema,
+  ValidateTelegramTokenResponseSchema,
   // Billing
   CreateCheckoutRequestSchema,
   CheckoutResponseSchema,
@@ -365,6 +368,58 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "patch",
+  path: "/instances/{id}",
+  tags: ["Instances"],
+  summary: "Update an instance (must be stopped)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: InstanceIdParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: UpdateInstanceRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Instance updated",
+      content: {
+        "application/json": {
+          schema: InstanceSchema,
+        },
+      },
+    },
+    400: {
+      description: "Bad request (instance must be stopped)",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
   method: "post",
   path: "/instances/{id}/start",
   tags: ["Instances"],
@@ -490,6 +545,49 @@ registry.registerPath({
     },
     404: {
       description: "Instance not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/instances/validate-telegram-token",
+  tags: ["Instances"],
+  summary: "Validate a Telegram bot token",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: ValidateTelegramTokenRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Token validation result",
+      content: {
+        "application/json": {
+          schema: ValidateTelegramTokenResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Bad request",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
       content: {
         "application/json": {
           schema: ApiErrorSchema,

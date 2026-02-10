@@ -57,9 +57,14 @@ export default function NewAgentPage() {
 
     void (async () => {
       try {
+        // Get the model based on personality selection
+        const selectedPersonality = personalities.find((p) => p.value === formData.personality);
+        const aiModel = selectedPersonality?.model ?? "claude-3-sonnet";
+
         const result = await createInstance({
           name: formData.name,
-          // TODO: Pass telegramToken and model to API when supported
+          telegramBotToken: formData.telegramToken,
+          aiModel,
         });
 
         if (result !== null) {

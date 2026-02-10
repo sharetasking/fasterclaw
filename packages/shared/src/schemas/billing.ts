@@ -49,6 +49,7 @@ export const SubscriptionSchema = z
     stripeSubscriptionId: z.string(),
     status: z.string(),
     plan: PlanTypeSchema.nullable(),
+    instanceLimit: z.number(),
     currentPeriodStart: z.string().datetime().nullable(),
     currentPeriodEnd: z.string().datetime(),
     cancelAtPeriodEnd: z.boolean(),

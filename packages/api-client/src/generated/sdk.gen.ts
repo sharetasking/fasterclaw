@@ -32,12 +32,18 @@ import type {
   GetInstancesByIdData,
   GetInstancesByIdResponse,
   GetInstancesByIdError,
+  PatchInstancesByIdData,
+  PatchInstancesByIdResponse,
+  PatchInstancesByIdError,
   PostInstancesByIdStartData,
   PostInstancesByIdStartResponse,
   PostInstancesByIdStartError,
   PostInstancesByIdStopData,
   PostInstancesByIdStopResponse,
   PostInstancesByIdStopError,
+  PostInstancesValidateTelegramTokenData,
+  PostInstancesValidateTelegramTokenResponse,
+  PostInstancesValidateTelegramTokenError,
   PostBillingCheckoutData,
   PostBillingCheckoutResponse,
   PostBillingCheckoutError,
@@ -300,6 +306,32 @@ export const getInstancesById = <ThrowOnError extends boolean = false>(
 };
 
 /**
+ * Update an instance (must be stopped)
+ */
+export const patchInstancesById = <ThrowOnError extends boolean = false>(
+  options: Options<PatchInstancesByIdData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).patch<
+    PatchInstancesByIdResponse,
+    PatchInstancesByIdError,
+    ThrowOnError
+  >({
+    security: [
+      {
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/instances/{id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+};
+
+/**
  * Start a stopped instance
  */
 export const postInstancesByIdStart = <ThrowOnError extends boolean = false>(
@@ -340,6 +372,32 @@ export const postInstancesByIdStop = <ThrowOnError extends boolean = false>(
     ],
     url: "/instances/{id}/stop",
     ...options,
+  });
+};
+
+/**
+ * Validate a Telegram bot token
+ */
+export const postInstancesValidateTelegramToken = <ThrowOnError extends boolean = false>(
+  options?: Options<PostInstancesValidateTelegramTokenData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).post<
+    PostInstancesValidateTelegramTokenResponse,
+    PostInstancesValidateTelegramTokenError,
+    ThrowOnError
+  >({
+    security: [
+      {
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/instances/validate-telegram-token",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
   });
 };
 

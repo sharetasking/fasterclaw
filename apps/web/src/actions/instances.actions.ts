@@ -7,8 +7,10 @@ import {
   postInstancesByIdStart,
   postInstancesByIdStop,
   deleteInstancesById,
+  postInstancesValidateTelegramToken,
   type Instance,
   type CreateInstanceRequest,
+  type ValidateTelegramTokenResponse,
 } from "@fasterclaw/api-client";
 import { createAuthenticatedClient } from "@/lib/api-client";
 
@@ -69,6 +71,21 @@ export async function createInstance(input: CreateInstanceRequest): Promise<Inst
   }
 }
 
+export async function deleteInstance(id: string): Promise<boolean> {
+  try {
+    const client = await createAuthenticatedClient();
+    const { error } = await deleteInstancesById({
+      client,
+      path: { id },
+    });
+
+    return !error;
+  } catch (error) {
+    console.error("Delete instance error:", error);
+    return false;
+  }
+}
+
 export async function startInstance(id: string): Promise<boolean> {
   try {
     const client = await createAuthenticatedClient();
@@ -99,17 +116,23 @@ export async function stopInstance(id: string): Promise<boolean> {
   }
 }
 
-export async function deleteInstance(id: string): Promise<boolean> {
+export async function validateTelegramToken(
+  telegramToken: string
+): Promise<ValidateTelegramTokenResponse> {
   try {
     const client = await createAuthenticatedClient();
-    const { error } = await deleteInstancesById({
+    const { data, error } = await postInstancesValidateTelegramToken({
       client,
-      path: { id },
+      body: { token: telegramToken },
     });
 
-    return !error;
+    if (error || !data) {
+      return { valid: false, error: "Failed to validate token" };
+    }
+
+    return data;
   } catch (error) {
-    console.error("Delete instance error:", error);
-    return false;
+    console.error("Validate Telegram token error:", error);
+    return { valid: false, error: "Failed to validate token" };
   }
 }

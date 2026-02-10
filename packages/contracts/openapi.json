@@ -48,7 +48,13 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "email", "name", "createdAt", "updatedAt"]
+        "required": [
+          "id",
+          "email",
+          "name",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "TokenResponse": {
         "type": "object",
@@ -60,7 +66,10 @@
             "$ref": "#/components/schemas/User"
           }
         },
-        "required": ["accessToken", "user"]
+        "required": [
+          "accessToken",
+          "user"
+        ]
       },
       "ApiError": {
         "type": "object",
@@ -69,7 +78,9 @@
             "type": "string"
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       },
       "RegisterRequest": {
         "type": "object",
@@ -87,7 +98,11 @@
             "minLength": 1
           }
         },
-        "required": ["email", "password", "name"]
+        "required": [
+          "email",
+          "password",
+          "name"
+        ]
       },
       "LoginRequest": {
         "type": "object",
@@ -100,7 +115,10 @@
             "type": "string"
           }
         },
-        "required": ["email", "password"]
+        "required": [
+          "email",
+          "password"
+        ]
       },
       "UpdateProfileRequest": {
         "type": "object",
@@ -111,7 +129,9 @@
             "maxLength": 100
           }
         },
-        "required": ["name"]
+        "required": [
+          "name"
+        ]
       },
       "ApiMessage": {
         "type": "object",
@@ -120,7 +140,9 @@
             "type": "string"
           }
         },
-        "required": ["message"]
+        "required": [
+          "message"
+        ]
       },
       "UpdatePasswordRequest": {
         "type": "object",
@@ -133,7 +155,10 @@
             "minLength": 8
           }
         },
-        "required": ["currentPassword", "newPassword"]
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
       },
       "Instance": {
         "type": "object",
@@ -149,6 +174,9 @@
           "name": {
             "type": "string"
           },
+          "provider": {
+            "type": "string"
+          },
           "flyAppName": {
             "type": "string",
             "nullable": true
@@ -157,11 +185,26 @@
             "type": "string",
             "nullable": true
           },
+          "dockerContainerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "dockerPort": {
+            "type": "number",
+            "nullable": true
+          },
           "status": {
             "type": "string"
           },
           "region": {
             "type": "string"
+          },
+          "aiModel": {
+            "type": "string"
+          },
+          "telegramBotToken": {
+            "type": "string",
+            "nullable": true
           },
           "ipAddress": {
             "type": "string",
@@ -180,10 +223,15 @@
           "id",
           "userId",
           "name",
+          "provider",
           "flyAppName",
           "flyMachineId",
+          "dockerContainerId",
+          "dockerPort",
           "status",
           "region",
+          "aiModel",
+          "telegramBotToken",
           "ipAddress",
           "createdAt",
           "updatedAt"
@@ -197,17 +245,45 @@
             "minLength": 1,
             "maxLength": 50
           },
+          "telegramBotToken": {
+            "type": "string",
+            "minLength": 1
+          },
           "region": {
             "type": "string",
             "default": "lax"
+          },
+          "aiModel": {
+            "type": "string",
+            "default": "claude-sonnet-4"
           }
         },
-        "required": ["name"]
+        "required": [
+          "name",
+          "telegramBotToken"
+        ]
       },
       "InstanceList": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Instance"
+        }
+      },
+      "UpdateInstanceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "telegramBotToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aiModel": {
+            "type": "string"
+          }
         }
       },
       "ApiSuccess": {
@@ -217,7 +293,41 @@
             "type": "boolean"
           }
         },
-        "required": ["success"]
+        "required": [
+          "success"
+        ]
+      },
+      "ValidateTelegramTokenResponse": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "botUsername": {
+            "type": "string"
+          },
+          "botName": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "valid"
+        ]
+      },
+      "ValidateTelegramTokenRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "token"
+        ]
       },
       "CheckoutResponse": {
         "type": "object",
@@ -227,17 +337,25 @@
             "format": "uri"
           }
         },
-        "required": ["url"]
+        "required": [
+          "url"
+        ]
       },
       "CreateCheckoutRequest": {
         "type": "object",
         "properties": {
           "plan": {
             "type": "string",
-            "enum": ["starter", "pro", "enterprise"]
+            "enum": [
+              "starter",
+              "pro",
+              "enterprise"
+            ]
           }
         },
-        "required": ["plan"]
+        "required": [
+          "plan"
+        ]
       },
       "PortalResponse": {
         "type": "object",
@@ -247,7 +365,9 @@
             "format": "uri"
           }
         },
-        "required": ["url"]
+        "required": [
+          "url"
+        ]
       },
       "Invoice": {
         "type": "object",
@@ -281,7 +401,15 @@
             "format": "uri"
           }
         },
-        "required": ["id", "amount", "status", "createdAt", "paidAt", "invoiceUrl", "invoicePdf"]
+        "required": [
+          "id",
+          "amount",
+          "status",
+          "createdAt",
+          "paidAt",
+          "invoiceUrl",
+          "invoicePdf"
+        ]
       },
       "InvoiceList": {
         "type": "array",
@@ -313,7 +441,14 @@
           "plan": {
             "type": "string",
             "nullable": true,
-            "enum": ["starter", "pro", "enterprise"]
+            "enum": [
+              "starter",
+              "pro",
+              "enterprise"
+            ]
+          },
+          "instanceLimit": {
+            "type": "number"
           },
           "currentPeriodStart": {
             "type": "string",
@@ -343,6 +478,7 @@
           "stripeSubscriptionId",
           "status",
           "plan",
+          "instanceLimit",
           "currentPeriodStart",
           "currentPeriodEnd",
           "cancelAtPeriodEnd",
@@ -372,7 +508,13 @@
             }
           }
         },
-        "required": ["name", "priceId", "price", "instanceLimit", "features"]
+        "required": [
+          "name",
+          "priceId",
+          "price",
+          "instanceLimit",
+          "features"
+        ]
       },
       "Plans": {
         "type": "object",
@@ -398,7 +540,10 @@
             "$ref": "#/components/schemas/Plans"
           }
         },
-        "required": ["subscription", "plans"]
+        "required": [
+          "subscription",
+          "plans"
+        ]
       },
       "WebhookResponse": {
         "type": "object",
@@ -407,7 +552,9 @@
             "type": "boolean"
           }
         },
-        "required": ["received"]
+        "required": [
+          "received"
+        ]
       }
     },
     "parameters": {}
@@ -415,7 +562,9 @@
   "paths": {
     "/auth/register": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Register a new user",
         "requestBody": {
           "content": {
@@ -462,7 +611,9 @@
     },
     "/auth/login": {
       "post": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Login with email and password",
         "requestBody": {
           "content": {
@@ -499,7 +650,9 @@
     },
     "/auth/me": {
       "get": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Get current authenticated user",
         "security": [
           {
@@ -532,7 +685,9 @@
     },
     "/auth/profile": {
       "patch": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Update user profile",
         "security": [
           {
@@ -574,7 +729,9 @@
     },
     "/auth/password": {
       "patch": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Change user password",
         "security": [
           {
@@ -626,7 +783,9 @@
     },
     "/auth/account": {
       "delete": {
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Delete user account",
         "security": [
           {
@@ -659,7 +818,9 @@
     },
     "/instances": {
       "post": {
-        "tags": ["Instances"],
+        "tags": [
+          "Instances"
+        ],
         "summary": "Create a new OpenClaw instance",
         "security": [
           {
@@ -709,7 +870,9 @@
         }
       },
       "get": {
-        "tags": ["Instances"],
+        "tags": [
+          "Instances"
+        ],
         "summary": "List all instances for the authenticated user",
         "security": [
           {
@@ -742,7 +905,9 @@
     },
     "/instances/{id}": {
       "get": {
-        "tags": ["Instances"],
+        "tags": [
+          "Instances"
+        ],
         "summary": "Get an instance by ID",
         "security": [
           {
@@ -793,8 +958,83 @@
           }
         }
       },
+      "patch": {
+        "tags": [
+          "Instances"
+        ],
+        "summary": "Update an instance (must be stopped)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "cuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInstanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instance updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (instance must be stopped)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
-        "tags": ["Instances"],
+        "tags": [
+          "Instances"
+        ],
         "summary": "Delete an instance",
         "security": [
           {
@@ -858,7 +1098,9 @@
     },
     "/instances/{id}/start": {
       "post": {
-        "tags": ["Instances"],
+        "tags": [
+          "Instances"
+        ],
         "summary": "Start a stopped instance",
         "security": [
           {
@@ -922,7 +1164,9 @@
     },
     "/instances/{id}/stop": {
       "post": {
-        "tags": ["Instances"],
+        "tags": [
+          "Instances"
+        ],
         "summary": "Stop a running instance",
         "security": [
           {
@@ -984,9 +1228,65 @@
         }
       }
     },
+    "/instances/validate-telegram-token": {
+      "post": {
+        "tags": [
+          "Instances"
+        ],
+        "summary": "Validate a Telegram bot token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateTelegramTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateTelegramTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/billing/checkout": {
       "post": {
-        "tags": ["Billing"],
+        "tags": [
+          "Billing"
+        ],
         "summary": "Create Stripe Checkout session for subscription",
         "security": [
           {
@@ -1038,7 +1338,9 @@
     },
     "/billing/portal": {
       "post": {
-        "tags": ["Billing"],
+        "tags": [
+          "Billing"
+        ],
         "summary": "Create Stripe Customer Portal session",
         "security": [
           {
@@ -1081,7 +1383,9 @@
     },
     "/billing/invoices": {
       "get": {
-        "tags": ["Billing"],
+        "tags": [
+          "Billing"
+        ],
         "summary": "Get invoice history from Stripe",
         "security": [
           {
@@ -1114,7 +1418,9 @@
     },
     "/billing/subscription": {
       "get": {
-        "tags": ["Billing"],
+        "tags": [
+          "Billing"
+        ],
         "summary": "Get current subscription status",
         "security": [
           {
@@ -1147,7 +1453,9 @@
     },
     "/billing/webhook": {
       "post": {
-        "tags": ["Billing"],
+        "tags": [
+          "Billing"
+        ],
         "summary": "Handle Stripe webhook events",
         "responses": {
           "200": {
@@ -1175,7 +1483,9 @@
     },
     "/health": {
       "get": {
-        "tags": ["Health"],
+        "tags": [
+          "Health"
+        ],
         "summary": "Health check endpoint",
         "responses": {
           "200": {
@@ -1187,14 +1497,19 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["ok"]
+                      "enum": [
+                        "ok"
+                      ]
                     },
                     "timestamp": {
                       "type": "string",
                       "format": "date-time"
                     }
                   },
-                  "required": ["status", "timestamp"]
+                  "required": [
+                    "status",
+                    "timestamp"
+                  ]
                 }
               }
             }

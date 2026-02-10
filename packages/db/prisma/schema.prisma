@@ -20,19 +20,26 @@ model User {
 }
 
 model Instance {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name             String
-  flyMachineId     String?  @unique
-  flyAppName       String?  @unique
-  ipAddress        String?
-  status           String   @default("pending") // pending, provisioning, running, stopped, error
-  telegramBotToken String?
-  aiModel          String   @default("claude-sonnet-4")
-  region           String   @default("iad")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  // Provider: "fly" (Fly.io) or "docker" (local Docker)
+  provider          String   @default("fly")
+  // Fly.io specific fields
+  flyMachineId      String?  @unique
+  flyAppName        String?  @unique
+  // Docker specific fields
+  dockerContainerId String?  @unique
+  dockerPort        Int?
+  // Common fields
+  ipAddress         String?
+  status            String   @default("pending") // pending, provisioning, running, stopped, error
+  telegramBotToken  String?
+  aiModel           String   @default("claude-sonnet-4")
+  region            String   @default("iad")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([userId])
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
 import { getCurrentUser, logout } from "@/actions/auth.actions";
 import { type User } from "@fasterclaw/api-client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,24 +16,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-interface UserWithAvatar extends User {
-  avatar?: string;
-}
-
 interface Props {
   collapsed?: boolean;
 }
 
 export default function UserMenu({ collapsed = false }: Props) {
   const router = useRouter();
-  const [user, setUser] = useState<UserWithAvatar | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     void getCurrentUser()
       .then((data) => {
-        setUser(data as UserWithAvatar | null);
+        setUser(data);
       })
       .finally(() => {
         setIsLoading(false);
@@ -90,9 +86,6 @@ export default function UserMenu({ collapsed = false }: Props) {
           )}
         >
           <Avatar className="h-8 w-8">
-            {user?.avatar != null && user.avatar !== "" && (
-              <AvatarImage src={user.avatar} alt={displayName} />
-            )}
             <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
           </Avatar>
           {!collapsed && (

@@ -13,8 +13,8 @@ import {
   startInstance,
   stopInstance,
   deleteInstance,
-  type Instance,
 } from "@/actions/instances.actions";
+import type { Instance } from "@fasterclaw/api-client";
 
 function statusVariant(status: string) {
   switch (status.toUpperCase()) {
