@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "generate": "openapi-ts --input ../contracts/openapi.json --output ./src/generated --client @hey-api/client-fetch",
+    "generate": "openapi-ts --input ../contracts/openapi.json --output ./src/generated --client @hey-api/client-fetch && prettier --write ./src/generated",
     "build": "pnpm generate",
     "typecheck": "tsc --noEmit"
   },
