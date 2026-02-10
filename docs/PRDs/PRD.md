@@ -1,24 +1,26 @@
 # FasterClaw - 3-Day Build Plan
 
 ## What We're Building
+
 A managed hosting service for [OpenClaw](https://github.com/openclaw/openclaw) - users sign up, connect Telegram, and get a running AI assistant in under 1 minute. Competitor to SimpleClaw.
 
 ## Tech Stack (Copy from Launchier)
 
-| Layer | Choice | Copy From |
-|-------|--------|-----------|
-| **Framework** | Next.js 16 (App Router) | Fresh, but copy patterns |
-| **Backend** | Fastify + Zod | `packages/core/api` |
-| **Database** | Neon PostgreSQL + Prisma | `packages/core/db` |
-| **Auth** | NextAuth (cookie-based JWT) | `apps/web/src/middleware.ts`, `packages/core/api/src/plugins/jwt.ts` |
-| **Payments** | Stripe | `packages/core/api/src/routes/billing.ts`, `services/stripe.ts` |
-| **Provisioning** | Fly.io Machines API | New (REST API) |
-| **UI** | Tailwind + shadcn/ui | `apps/web/src/components/` |
-| **Deploy** | Vercel (web) + Fly.io (API) | Same as Launchier |
+| Layer            | Choice                      | Copy From                                                            |
+| ---------------- | --------------------------- | -------------------------------------------------------------------- |
+| **Framework**    | Next.js 16 (App Router)     | Fresh, but copy patterns                                             |
+| **Backend**      | Fastify + Zod               | `packages/core/api`                                                  |
+| **Database**     | Neon PostgreSQL + Prisma    | `packages/core/db`                                                   |
+| **Auth**         | NextAuth (cookie-based JWT) | `apps/web/src/middleware.ts`, `packages/core/api/src/plugins/jwt.ts` |
+| **Payments**     | Stripe                      | `packages/core/api/src/routes/billing.ts`, `services/stripe.ts`      |
+| **Provisioning** | Fly.io Machines API         | New (REST API)                                                       |
+| **UI**           | Tailwind + shadcn/ui        | `apps/web/src/components/`                                           |
+| **Deploy**       | Vercel (web) + Fly.io (API) | Same as Launchier                                                    |
 
 ## What to Copy from Launchier
 
 ### Frontend (apps/web)
+
 - `middleware.ts` - Auth middleware pattern
 - `components/Providers/` - Theme + Toast setup
 - `components/Layout/` - Dashboard layout with sidebar
@@ -27,6 +29,7 @@ A managed hosting service for [OpenClaw](https://github.com/openclaw/openclaw) -
 - `store/` - Zustand UI state pattern
 
 ### Backend (packages/core/api)
+
 - `plugins/jwt.ts` - JWT authentication
 - `plugins/cors.ts` - CORS setup
 - `plugins/cookie.ts` - Cookie parsing
@@ -128,7 +131,7 @@ async function provisionInstance(instance: Instance, telegramToken: string) {
   // 3. Update DB
   await prisma.instance.update({
     where: { id: instance.id },
-    data: { flyMachineId: machine.id, flyAppName: app.name, status: "running" }
+    data: { flyMachineId: machine.id, flyAppName: app.name, status: "running" },
   });
 }
 ```
@@ -139,27 +142,27 @@ async function provisionInstance(instance: Instance, telegramToken: string) {
 
 ### Dev 1: Frontend & Landing Page
 
-| Day | Tasks |
-|-----|-------|
-| **Day 1** | - Project setup (Next.js 16, Tailwind, shadcn/ui) <br> - Copy Providers, Layout, Sidebar from Launchier <br> - Landing page (hero, features, pricing, CTA) |
+| Day       | Tasks                                                                                                                                                                            |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Day 1** | - Project setup (Next.js 16, Tailwind, shadcn/ui) <br> - Copy Providers, Layout, Sidebar from Launchier <br> - Landing page (hero, features, pricing, CTA)                       |
 | **Day 2** | - Auth pages (sign-in, create-account) - copy patterns from Launchier <br> - Dashboard layout with instance list <br> - "Create Instance" wizard (model, region, Telegram token) |
-| **Day 3** | - Instance detail page (status, controls, logs link) <br> - Settings/account page <br> - Responsive polish, deploy to Vercel |
+| **Day 3** | - Instance detail page (status, controls, logs link) <br> - Settings/account page <br> - Responsive polish, deploy to Vercel                                                     |
 
 ### Dev 2: Backend & Provisioning (Fastify)
 
-| Day | Tasks |
-|-----|-------|
+| Day       | Tasks                                                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Day 1** | - Copy Fastify app factory from Launchier <br> - Copy JWT + CORS + Cookie plugins <br> - Neon DB setup + Prisma schema <br> - Auth routes (copy from Launchier, simplify) |
-| **Day 2** | - Instance CRUD routes <br> - Fly.io API client (create app, create machine, start/stop) <br> - Instance provisioning service |
-| **Day 3** | - Health check / status sync job <br> - Error handling & retry logic <br> - Deploy API to Fly.io |
+| **Day 2** | - Instance CRUD routes <br> - Fly.io API client (create app, create machine, start/stop) <br> - Instance provisioning service                                             |
+| **Day 3** | - Health check / status sync job <br> - Error handling & retry logic <br> - Deploy API to Fly.io                                                                          |
 
 ### Dev 3: Billing & Integrations
 
-| Day | Tasks |
-|-----|-------|
+| Day       | Tasks                                                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
 | **Day 1** | - Copy Stripe service + billing routes from Launchier <br> - Stripe products/prices setup <br> - Checkout session creation |
-| **Day 2** | - Stripe webhook handler <br> - Subscription sync to DB <br> - Gate instance creation on active subscription |
-| **Day 3** | - Telegram bot token validation endpoint <br> - Billing portal integration <br> - E2E testing, bug fixes |
+| **Day 2** | - Stripe webhook handler <br> - Subscription sync to DB <br> - Gate instance creation on active subscription               |
+| **Day 3** | - Telegram bot token validation endpoint <br> - Billing portal integration <br> - E2E testing, bug fixes                   |
 
 ---
 
@@ -167,13 +170,14 @@ async function provisionInstance(instance: Instance, telegramToken: string) {
 
 SimpleClaw averages ~$50/user. Position FasterClaw as premium with better value:
 
-| Plan | Price | Instances | Features |
-|------|-------|-----------|----------|
-| **Starter** | $39/mo | 1 | Telegram, Claude Sonnet, 24/7 uptime |
-| **Pro** | $79/mo | 3 | + Discord, model choice (Opus/GPT-5), priority provisioning |
-| **Business** | $149/mo | 10 | + WhatsApp, dedicated support, custom domain |
+| Plan         | Price   | Instances | Features                                                    |
+| ------------ | ------- | --------- | ----------------------------------------------------------- |
+| **Starter**  | $39/mo  | 1         | Telegram, Claude Sonnet, 24/7 uptime                        |
+| **Pro**      | $79/mo  | 3         | + Discord, model choice (Opus/GPT-5), priority provisioning |
+| **Business** | $149/mo | 10        | + WhatsApp, dedicated support, custom domain                |
 
 **Why higher pricing works:**
+
 - AI API costs (Anthropic) are real - you need margin
 - Fly.io compute costs ~$5-15/instance/mo
 - Premium positioning = better customers, less support
@@ -184,6 +188,7 @@ SimpleClaw averages ~$50/user. Position FasterClaw as premium with better value:
 ## Day-by-Day Milestones
 
 ### End of Day 1
+
 - Monorepo scaffolded, copying Launchier patterns
 - Landing page live (Vercel)
 - Auth working (register/login)
@@ -191,12 +196,14 @@ SimpleClaw averages ~$50/user. Position FasterClaw as premium with better value:
 - Stripe products created
 
 ### End of Day 2
+
 - Dashboard UI with instance list
 - Instance CRUD working
 - Fly.io provisioning working
 - Checkout flow complete
 
 ### End of Day 3
+
 - Full flow: Sign up → Pay → Deploy → Running bot
 - Instance management (start/stop/delete)
 - Production deploy (Vercel + Fly.io)
@@ -207,30 +214,30 @@ SimpleClaw averages ~$50/user. Position FasterClaw as premium with better value:
 
 ### From Launchier → FasterClaw
 
-| Launchier File | FasterClaw File | Notes |
-|----------------|-----------------|-------|
-| `apps/web/src/middleware.ts` | `apps/web/src/middleware.ts` | Adapt routes |
-| `apps/web/src/components/Providers/` | `apps/web/src/components/Providers/` | Remove PostHog/FB |
-| `apps/web/src/components/Layout/` | `apps/web/src/components/Layout/` | Simplify |
-| `apps/web/src/components/Sidebar/` | `apps/web/src/components/Sidebar/` | Update nav items |
-| `packages/core/api/src/app.ts` | `apps/api/src/app.ts` | Strip unused routes |
-| `packages/core/api/src/plugins/jwt.ts` | `apps/api/src/plugins/jwt.ts` | Copy directly |
-| `packages/core/api/src/plugins/cors.ts` | `apps/api/src/plugins/cors.ts` | Update domains |
-| `packages/core/api/src/plugins/cookie.ts` | `apps/api/src/plugins/cookie.ts` | Copy directly |
-| `packages/core/api/src/routes/auth.ts` | `apps/api/src/routes/auth.ts` | Simplify (no OAuth needed for MVP) |
-| `packages/core/api/src/routes/billing.ts` | `apps/api/src/routes/billing.ts` | Adapt for plans |
-| `packages/core/api/src/services/stripe.ts` | `apps/api/src/services/stripe.ts` | Update price IDs |
+| Launchier File                             | FasterClaw File                      | Notes                              |
+| ------------------------------------------ | ------------------------------------ | ---------------------------------- |
+| `apps/web/src/middleware.ts`               | `apps/web/src/middleware.ts`         | Adapt routes                       |
+| `apps/web/src/components/Providers/`       | `apps/web/src/components/Providers/` | Remove PostHog/FB                  |
+| `apps/web/src/components/Layout/`          | `apps/web/src/components/Layout/`    | Simplify                           |
+| `apps/web/src/components/Sidebar/`         | `apps/web/src/components/Sidebar/`   | Update nav items                   |
+| `packages/core/api/src/app.ts`             | `apps/api/src/app.ts`                | Strip unused routes                |
+| `packages/core/api/src/plugins/jwt.ts`     | `apps/api/src/plugins/jwt.ts`        | Copy directly                      |
+| `packages/core/api/src/plugins/cors.ts`    | `apps/api/src/plugins/cors.ts`       | Update domains                     |
+| `packages/core/api/src/plugins/cookie.ts`  | `apps/api/src/plugins/cookie.ts`     | Copy directly                      |
+| `packages/core/api/src/routes/auth.ts`     | `apps/api/src/routes/auth.ts`        | Simplify (no OAuth needed for MVP) |
+| `packages/core/api/src/routes/billing.ts`  | `apps/api/src/routes/billing.ts`     | Adapt for plans                    |
+| `packages/core/api/src/services/stripe.ts` | `apps/api/src/services/stripe.ts`    | Update price IDs                   |
 
 ### New Files to Create
 
-| File | Purpose |
-|------|---------|
-| `apps/api/src/services/fly.ts` | Fly.io Machines API client |
-| `apps/api/src/routes/instances.ts` | Instance CRUD + lifecycle |
-| `apps/web/src/app/page.tsx` | Landing page |
-| `apps/web/src/app/dashboard/page.tsx` | Instance list |
-| `apps/web/src/app/dashboard/instances/[id]/page.tsx` | Instance detail |
-| `packages/db/prisma/schema.prisma` | DB schema (User, Instance, Subscription) |
+| File                                                 | Purpose                                  |
+| ---------------------------------------------------- | ---------------------------------------- |
+| `apps/api/src/services/fly.ts`                       | Fly.io Machines API client               |
+| `apps/api/src/routes/instances.ts`                   | Instance CRUD + lifecycle                |
+| `apps/web/src/app/page.tsx`                          | Landing page                             |
+| `apps/web/src/app/dashboard/page.tsx`                | Instance list                            |
+| `apps/web/src/app/dashboard/instances/[id]/page.tsx` | Instance detail                          |
+| `packages/db/prisma/schema.prisma`                   | DB schema (User, Instance, Subscription) |
 
 ---
 

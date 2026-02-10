@@ -3,9 +3,9 @@
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "react-hot-toast";
 
-type Props = {
+interface Props {
   children: React.ReactNode;
-};
+}
 
 const Providers = ({ children }: Props) => {
   return (

@@ -1,45 +1,20 @@
-import type { FastifyInstance } from 'fastify';
-import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
-import bcrypt from 'bcryptjs';
-import { prisma } from '@fasterclaw/db';
-import { stripe } from '../services/stripe.js';
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import bcrypt from "bcryptjs";
+import { prisma } from "@fasterclaw/db";
+import { stripe } from "../services/stripe.js";
+import {
+  RegisterRequestSchema,
+  LoginRequestSchema,
+  UserSchema,
+  TokenResponseSchema,
+  UpdateProfileRequestSchema,
+  UpdatePasswordRequestSchema,
+  ApiErrorSchema,
+  ApiMessageSchema,
+} from "@fasterclaw/shared";
 
-// Zod schemas for request/response validation
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
-});
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
-const userSchema = z.object({
-  id: z.string(),
-  email: z.string(),
-  name: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-const tokenResponseSchema = z.object({
-  accessToken: z.string(),
-  user: userSchema,
-});
-
-const updateProfileSchema = z.object({
-  name: z.string().min(1).max(100),
-});
-
-const updatePasswordSchema = z.object({
-  currentPassword: z.string(),
-  newPassword: z.string().min(8),
-});
-
-export async function authRoutes(fastify: FastifyInstance) {
+export function authRoutes(fastify: FastifyInstance): void {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   // Helper to generate JWT token
@@ -50,22 +25,22 @@ export async function authRoutes(fastify: FastifyInstance) {
         email: user.email,
         name: user.name,
       },
-      { expiresIn: '7d' }
+      { expiresIn: "7d" }
     );
   }
 
   // POST /auth/register - Register a new user
   app.post(
-    '/auth/register',
+    "/auth/register",
     {
       schema: {
-        tags: ['Auth'],
-        summary: 'Register a new user',
-        body: registerSchema,
+        tags: ["Auth"],
+        summary: "Register a new user",
+        body: RegisterRequestSchema,
         response: {
-          201: tokenResponseSchema,
-          400: z.object({ error: z.string() }),
-          409: z.object({ error: z.string() }),
+          201: TokenResponseSchema,
+          400: ApiErrorSchema,
+          409: ApiErrorSchema,
         },
       },
     },
@@ -77,7 +52,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (existingUser) {
-        return reply.code(409).send({ error: 'User already exists' });
+        return reply.code(409).send({ error: "User already exists" });
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
@@ -112,15 +87,15 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // POST /auth/login - Login with email/password
   app.post(
-    '/auth/login',
+    "/auth/login",
     {
       schema: {
-        tags: ['Auth'],
-        summary: 'Login with email and password',
-        body: loginSchema,
+        tags: ["Auth"],
+        summary: "Login with email and password",
+        body: LoginRequestSchema,
         response: {
-          200: tokenResponseSchema,
-          401: z.object({ error: z.string() }),
+          200: TokenResponseSchema,
+          401: ApiErrorSchema,
         },
       },
     },
@@ -139,13 +114,13 @@ export async function authRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!user || !user.passwordHash) {
-        return reply.code(401).send({ error: 'Invalid credentials' });
+      if (user?.passwordHash == null) {
+        return reply.code(401).send({ error: "Invalid credentials" });
       }
 
       const isValid = await bcrypt.compare(password, user.passwordHash);
       if (!isValid) {
-        return reply.code(401).send({ error: 'Invalid credentials' });
+        return reply.code(401).send({ error: "Invalid credentials" });
       }
 
       const accessToken = generateToken(user);
@@ -165,14 +140,14 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // GET /auth/me - Get current user from token
   app.get(
-    '/auth/me',
+    "/auth/me",
     {
       schema: {
-        tags: ['Auth'],
-        summary: 'Get current authenticated user',
+        tags: ["Auth"],
+        summary: "Get current authenticated user",
         response: {
-          200: userSchema,
-          401: z.object({ error: z.string() }),
+          200: UserSchema,
+          401: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -193,7 +168,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        return reply.code(401).send({ error: 'User not found' });
+        return reply.code(401).send({ error: "User not found" });
       }
 
       return reply.send({
@@ -206,15 +181,15 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // PATCH /auth/profile - Update user profile
   app.patch(
-    '/auth/profile',
+    "/auth/profile",
     {
       schema: {
-        tags: ['Auth'],
-        summary: 'Update user profile',
-        body: updateProfileSchema,
+        tags: ["Auth"],
+        summary: "Update user profile",
+        body: UpdateProfileRequestSchema,
         response: {
-          200: userSchema,
-          401: z.object({ error: z.string() }),
+          200: UserSchema,
+          401: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -246,16 +221,16 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // PATCH /auth/password - Change password
   app.patch(
-    '/auth/password',
+    "/auth/password",
     {
       schema: {
-        tags: ['Auth'],
-        summary: 'Change user password',
-        body: updatePasswordSchema,
+        tags: ["Auth"],
+        summary: "Change user password",
+        body: UpdatePasswordRequestSchema,
         response: {
-          200: z.object({ message: z.string() }),
-          401: z.object({ error: z.string() }),
-          400: z.object({ error: z.string() }),
+          200: ApiMessageSchema,
+          401: ApiErrorSchema,
+          400: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -270,13 +245,13 @@ export async function authRoutes(fastify: FastifyInstance) {
         select: { passwordHash: true },
       });
 
-      if (!user || !user.passwordHash) {
-        return reply.code(400).send({ error: 'Password change not available for this account' });
+      if (user?.passwordHash == null) {
+        return reply.code(400).send({ error: "Password change not available for this account" });
       }
 
       const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!isValid) {
-        return reply.code(401).send({ error: 'Current password is incorrect' });
+        return reply.code(401).send({ error: "Current password is incorrect" });
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -286,20 +261,20 @@ export async function authRoutes(fastify: FastifyInstance) {
         data: { passwordHash: hashedPassword },
       });
 
-      return reply.send({ message: 'Password updated successfully' });
+      return reply.send({ message: "Password updated successfully" });
     }
   );
 
   // DELETE /auth/account - Delete user account
   app.delete(
-    '/auth/account',
+    "/auth/account",
     {
       schema: {
-        tags: ['Auth'],
-        summary: 'Delete user account and all associated data',
+        tags: ["Auth"],
+        summary: "Delete user account and all associated data",
         response: {
-          200: z.object({ message: z.string() }),
-          401: z.object({ error: z.string() }),
+          200: ApiMessageSchema,
+          401: ApiErrorSchema,
         },
         security: [{ bearerAuth: [] }],
       },
@@ -313,20 +288,24 @@ export async function authRoutes(fastify: FastifyInstance) {
         select: {
           id: true,
           stripeCustomerId: true,
-          stripeSubscriptionId: true,
+          subscription: {
+            select: {
+              stripeSubscriptionId: true,
+            },
+          },
         },
       });
 
-      if (!user) {
-        return reply.code(401).send({ error: 'User not found' });
+      if (user === null) {
+        return reply.code(401).send({ error: "User not found" });
       }
 
       // Cancel Stripe subscription if exists
-      if (user.stripeSubscriptionId) {
+      if (user.subscription?.stripeSubscriptionId !== undefined) {
         try {
-          await stripe.subscriptions.cancel(user.stripeSubscriptionId);
-        } catch (error) {
-          console.error('Failed to cancel Stripe subscription:', error);
+          await stripe.subscriptions.cancel(user.subscription.stripeSubscriptionId);
+        } catch (error: unknown) {
+          console.error("Failed to cancel Stripe subscription:", error);
         }
       }
 
@@ -340,7 +319,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         where: { id: userId },
       });
 
-      return reply.send({ message: 'Account deleted successfully' });
+      return reply.send({ message: "Account deleted successfully" });
     }
   );
 }

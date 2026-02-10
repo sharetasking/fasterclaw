@@ -34,9 +34,7 @@ export default function PricingPage() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Simple, Transparent Pricing
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Simple, Transparent Pricing</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Choose the plan that fits your needs. All plans include 14-day free trial.
               <br />
@@ -192,8 +190,8 @@ export default function PricingPage() {
               <div>
                 <h3 className="font-semibold mb-2">Can I change plans later?</h3>
                 <p className="text-muted-foreground">
-                  Yes! You can upgrade or downgrade your plan at any time. Changes will be
-                  prorated based on your billing cycle.
+                  Yes! You can upgrade or downgrade your plan at any time. Changes will be prorated
+                  based on your billing cycle.
                 </p>
               </div>
               <div>
@@ -222,9 +220,7 @@ export default function PricingPage() {
               <span className="text-2xl">⚡</span>
               <span>FasterClaw</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 FasterClaw. All rights reserved.
-            </p>
+            <p className="text-sm text-muted-foreground">© 2024 FasterClaw. All rights reserved.</p>
             <div className="flex gap-6">
               <Link href="/" className="text-sm hover:text-primary transition-colors">
                 Home

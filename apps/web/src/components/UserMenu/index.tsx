@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { getCurrentUser, logout } from "@/actions/auth.actions";
+import { type User } from "@fasterclaw/api-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -15,27 +16,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
+interface UserWithAvatar extends User {
   avatar?: string;
-};
+}
 
-type Props = {
+interface Props {
   collapsed?: boolean;
-};
+}
 
 export default function UserMenu({ collapsed = false }: Props) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserWithAvatar | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    getCurrentUser()
-      .then(setUser)
-      .finally(() => setIsLoading(false));
+    void getCurrentUser()
+      .then((data) => {
+        setUser(data as UserWithAvatar | null);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const handleLogout = () => {
@@ -75,8 +77,8 @@ export default function UserMenu({ collapsed = false }: Props) {
   }
 
   // Use fallback values if user data is not available
-  const displayName = user?.name || "User";
-  const displayEmail = user?.email || "";
+  const displayName = user?.name ?? "User";
+  const displayEmail = user?.email ?? "";
 
   return (
     <DropdownMenu>
@@ -88,41 +90,35 @@ export default function UserMenu({ collapsed = false }: Props) {
           )}
         >
           <Avatar className="h-8 w-8">
-            {user?.avatar && <AvatarImage src={user.avatar} alt={displayName} />}
-            <AvatarFallback className="text-xs">
-              {getInitials(displayName)}
-            </AvatarFallback>
+            {user?.avatar != null && user.avatar !== "" && (
+              <AvatarImage src={user.avatar} alt={displayName} />
+            )}
+            <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
-              {displayEmail && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {displayEmail}
-                </p>
+              {displayEmail !== "" && (
+                <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
               )}
             </div>
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align={collapsed ? "center" : "start"}
-        side="top"
-        className="w-56"
-      >
+      <DropdownMenuContent align={collapsed ? "center" : "start"} side="top" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{displayName}</p>
-            {displayEmail && (
-              <p className="text-xs leading-none text-muted-foreground">
-                {displayEmail}
-              </p>
+            {displayEmail !== "" && (
+              <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
             )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => router.push("/dashboard/settings")}
+          onClick={() => {
+            router.push("/dashboard/settings");
+          }}
           className="cursor-pointer"
         >
           <Settings className="mr-2 h-4 w-4" />

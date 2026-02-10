@@ -12,11 +12,11 @@ import {
 
 const STORAGE_KEY = "sidebar-collapsed";
 
-type SidebarContextType = {
+interface SidebarContextType {
   collapsed: boolean;
   toggleCollapsed: () => void;
   isHydrated: boolean;
-};
+}
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
@@ -42,7 +42,9 @@ export const SidebarProvider = ({ children }: { children: ReactNode }) => {
       isInitialMount.current = false;
       return;
     }
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
 
     try {
       localStorage.setItem(STORAGE_KEY, String(collapsed));

@@ -5,15 +5,53 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
+    "@fasterclaw/shared#build": {
+      "outputs": ["dist/**"]
+    },
+    "@fasterclaw/contracts#build": {
+      "dependsOn": ["@fasterclaw/shared#build"],
+      "outputs": ["openapi.json"]
+    },
+    "@fasterclaw/api-client#build": {
+      "dependsOn": ["@fasterclaw/contracts#build"],
+      "outputs": ["src/generated/**"]
+    },
+    "generate": {
+      "dependsOn": ["^build"],
+      "outputs": ["src/generated/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "typecheck": {
       "dependsOn": ["^build"]
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.js",
+        "**/*.jsx",
+        "**/*.mjs",
+        "**/*.cjs",
+        "eslint.config.js",
+        "../../eslint.config.js"
+      ],
+      "outputs": []
+    },
+    "lint:fix": {
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "db:generate": {
       "cache": false

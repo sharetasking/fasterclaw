@@ -1,52 +1,30 @@
 "use server";
 
-import { cookies } from "next/headers";
+import {
+  getInstances as getInstancesApi,
+  getInstancesById,
+  postInstances,
+  postInstancesByIdStart,
+  postInstancesByIdStop,
+  deleteInstancesById,
+  type Instance,
+  type CreateInstanceRequest,
+} from "@fasterclaw/api-client";
+import { createAuthenticatedClient } from "@/lib/api-client";
 
-export type Instance = {
-  id: string;
-  userId: string;
-  name: string;
-  flyAppName: string | null;
-  flyMachineId: string | null;
-  status: string;
-  region: string;
-  ipAddress: string | null;
-  telegramBotToken: string | null;
-  aiModel: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type CreateInstanceInput = {
-  name: string;
-  region: string;
-  telegramBotToken: string;
-  aiModel?: string;
-};
-
-async function getAuthToken(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get("auth_token")?.value || null;
-}
+// NOTE: Types are NOT re-exported from Server Actions files.
+// Import types directly from @fasterclaw/api-client instead.
 
 export async function getInstances(): Promise<Instance[]> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
+    const client = await createAuthenticatedClient();
+    const { data } = await getInstancesApi({ client });
+
+    if (!data) {
+      return [];
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch instances");
-    }
-
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Get instances error:", error);
     return [];
@@ -55,121 +33,51 @@ export async function getInstances(): Promise<Instance[]> {
 
 export async function getInstance(id: string): Promise<Instance | null> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const client = await createAuthenticatedClient();
+    const { data } = await getInstancesById({
+      client,
+      path: { id },
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch instance");
+    if (!data) {
+      return null;
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Get instance error:", error);
     return null;
   }
 }
 
-export async function createInstance(input: CreateInstanceInput): Promise<Instance | null> {
+export async function createInstance(input: CreateInstanceRequest): Promise<Instance | null> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(input),
+    const client = await createAuthenticatedClient();
+    const { data } = await postInstances({
+      client,
+      body: input,
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to create instance");
+    if (!data) {
+      return null;
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Create instance error:", error);
     return null;
   }
 }
 
-export async function updateInstance(
-  id: string,
-  updates: Partial<CreateInstanceInput>
-): Promise<Instance | null> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to update instance");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Update instance error:", error);
-    return null;
-  }
-}
-
-export async function deleteInstance(id: string): Promise<boolean> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Delete instance error:", error);
-    return false;
-  }
-}
-
 export async function startInstance(id: string): Promise<boolean> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/start`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const client = await createAuthenticatedClient();
+    const { error } = await postInstancesByIdStart({
+      client,
+      path: { id },
     });
 
-    return response.ok;
+    return !error;
   } catch (error) {
     console.error("Start instance error:", error);
     return false;
@@ -178,81 +86,30 @@ export async function startInstance(id: string): Promise<boolean> {
 
 export async function stopInstance(id: string): Promise<boolean> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/stop`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const client = await createAuthenticatedClient();
+    const { error } = await postInstancesByIdStop({
+      client,
+      path: { id },
     });
 
-    return response.ok;
+    return !error;
   } catch (error) {
     console.error("Stop instance error:", error);
     return false;
   }
 }
 
-export async function restartInstance(id: string): Promise<boolean> {
+export async function deleteInstance(id: string): Promise<boolean> {
   try {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/instances/${id}/restart`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const client = await createAuthenticatedClient();
+    const { error } = await deleteInstancesById({
+      client,
+      path: { id },
     });
 
-    return response.ok;
+    return !error;
   } catch (error) {
-    console.error("Restart instance error:", error);
+    console.error("Delete instance error:", error);
     return false;
-  }
-}
-
-export type TelegramTokenValidation = {
-  valid: boolean;
-  botUsername?: string;
-  botName?: string;
-  error?: string;
-};
-
-export async function validateTelegramToken(
-  telegramToken: string
-): Promise<TelegramTokenValidation> {
-  try {
-    const token = await getAuthToken();
-    if (!token) {
-      return { valid: false, error: "Not authenticated" };
-    }
-
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/instances/validate-telegram-token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ token: telegramToken }),
-      }
-    );
-
-    if (!response.ok) {
-      return { valid: false, error: "Failed to validate token" };
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Validate Telegram token error:", error);
-    return { valid: false, error: "Failed to validate token" };
   }
 }

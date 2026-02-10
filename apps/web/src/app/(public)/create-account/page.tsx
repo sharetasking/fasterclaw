@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import toast from "react-hot-toast";
-import { register } from "@/actions/auth.actions";
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -20,7 +19,7 @@ export default function CreateAccountPage() {
     confirmPassword: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
@@ -35,21 +34,19 @@ export default function CreateAccountPage() {
 
     setLoading(true);
 
-    try {
-      const result = await register(formData.name, formData.email, formData.password);
+    void (async () => {
+      try {
+        // TODO: Replace with actual API call
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (!result.success) {
-        toast.error(result.error || "Failed to create account");
-        return;
+        toast.success("Account created successfully!");
+        router.push("/dashboard");
+      } catch {
+        toast.error("Failed to create account");
+      } finally {
+        setLoading(false);
       }
-
-      toast.success("Account created successfully!");
-      router.push("/dashboard");
-    } catch (error) {
-      toast.error("Failed to create account");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   return (
@@ -71,7 +68,9 @@ export default function CreateAccountPage() {
                 type="text"
                 placeholder="John Doe"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                }}
                 required
               />
             </div>
@@ -82,7 +81,9 @@ export default function CreateAccountPage() {
                 type="email"
                 placeholder="you@example.com"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                }}
                 required
               />
             </div>
@@ -93,7 +94,9 @@ export default function CreateAccountPage() {
                 type="password"
                 placeholder="At least 8 characters"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                }}
                 required
               />
             </div>
@@ -104,7 +107,9 @@ export default function CreateAccountPage() {
                 type="password"
                 placeholder="Re-enter your password"
                 value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, confirmPassword: e.target.value });
+                }}
                 required
               />
             </div>

@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import toast from "react-hot-toast";
 import { login } from "@/actions/auth.actions";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 function SignInForm() {
   const router = useRouter();
@@ -29,25 +29,27 @@ function SignInForm() {
     }
   }, [searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const result = await login(formData.email, formData.password);
+    void (async () => {
+      try {
+        const result = await login(formData.email, formData.password);
 
-      if (!result.success) {
-        throw new Error(result.error || "Invalid email or password");
+        if (!result.success) {
+          throw new Error(result.error ?? "Invalid email or password");
+        }
+
+        toast.success("Signed in successfully!");
+        const from = searchParams.get("from") ?? "/dashboard";
+        router.push(from);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Invalid email or password");
+      } finally {
+        setLoading(false);
       }
-
-      toast.success("Signed in successfully!");
-      const from = searchParams.get("from") || "/dashboard";
-      router.push(from);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Invalid email or password");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   const handleGoogleSignIn = () => {
@@ -56,12 +58,7 @@ function SignInForm() {
 
   return (
     <div className="space-y-4">
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={handleGoogleSignIn}
-      >
+      <Button type="button" variant="outline" className="w-full" onClick={handleGoogleSignIn}>
         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -100,7 +97,9 @@ function SignInForm() {
             type="email"
             placeholder="you@example.com"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) => {
+              setFormData({ ...formData, email: e.target.value });
+            }}
             required
           />
         </div>
@@ -111,7 +110,9 @@ function SignInForm() {
             type="password"
             placeholder="Enter your password"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={(e) => {
+              setFormData({ ...formData, password: e.target.value });
+            }}
             required
           />
         </div>

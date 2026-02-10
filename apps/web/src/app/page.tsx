@@ -71,9 +71,7 @@ export default function HomePage() {
       <section id="features" className="py-20 bg-muted/50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything You Need to Scale AI
-            </h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything You Need to Scale AI</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Built for developers who want to focus on building, not managing infrastructure.
             </p>
@@ -162,9 +160,7 @@ export default function HomePage() {
       <section id="pricing" className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Simple, Transparent Pricing
-            </h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
             <p className="text-lg text-muted-foreground">
               Choose the plan that fits your needs. All plans include 14-day free trial.
             </p>
@@ -320,9 +316,7 @@ export default function HomePage() {
               <span className="text-2xl">⚡</span>
               <span>FasterClaw</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 FasterClaw. All rights reserved.
-            </p>
+            <p className="text-sm text-muted-foreground">© 2024 FasterClaw. All rights reserved.</p>
             <div className="flex gap-6">
               <Link href="/pricing" className="text-sm hover:text-primary transition-colors">
                 Pricing

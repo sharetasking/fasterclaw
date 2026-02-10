@@ -1,0 +1,27 @@
+{
+  "name": "@fasterclaw/contracts",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./openapi.json",
+  "exports": {
+    ".": "./openapi.json",
+    "./openapi.json": "./openapi.json"
+  },
+  "files": [
+    "openapi.json"
+  ],
+  "scripts": {
+    "build": "tsx src/generator.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fasterclaw/shared": "workspace:*",
+    "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

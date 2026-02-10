@@ -1,20 +1,16 @@
-import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
-import {
-  serializerCompiler,
-  validatorCompiler,
-} from 'fastify-type-provider-zod';
-import fastifySwagger from '@fastify/swagger';
-import fastifySwaggerUi from '@fastify/swagger-ui';
-import fastifyRawBody from 'fastify-raw-body';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
+import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUi from "@fastify/swagger-ui";
 
-import { corsPlugin, type CorsPluginOptions } from './plugins/cors.js';
-import { cookiePlugin, type CookiePluginOptions } from './plugins/cookie.js';
-import { jwtPlugin, type JwtPluginOptions } from './plugins/jwt.js';
-import { healthRoutes } from './routes/health.js';
-import { authRoutes } from './routes/auth.js';
-import { googleAuthRoutes } from './routes/google-auth.js';
-import { instanceRoutes } from './routes/instances.js';
-import { billingRoutes } from './routes/billing.js';
+import { corsPlugin, type CorsPluginOptions } from "./plugins/cors.js";
+import { cookiePlugin, type CookiePluginOptions } from "./plugins/cookie.js";
+import { jwtPlugin, type JwtPluginOptions } from "./plugins/jwt.js";
+import { healthRoutes } from "./routes/health.js";
+import { authRoutes } from "./routes/auth.js";
+import { googleAuthRoutes } from "./routes/google-auth.js";
+import { instanceRoutes } from "./routes/instances.js";
+import { billingRoutes } from "./routes/billing.js";
 
 export interface CreateAppOptions {
   /** Fastify server options */
@@ -32,21 +28,22 @@ export interface CreateAppOptions {
  */
 export async function createApp(options: CreateAppOptions = {}): Promise<FastifyInstance> {
   const defaultFastifyOptions: FastifyServerOptions = {
-    logger: process.env.NODE_ENV === 'development'
-      ? {
-          level: process.env.LOG_LEVEL ?? 'info',
-          transport: {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'HH:MM:ss.l',
-              ignore: 'pid,hostname',
+    logger:
+      process.env.NODE_ENV === "development"
+        ? {
+            level: process.env.LOG_LEVEL ?? "info",
+            transport: {
+              target: "pino-pretty",
+              options: {
+                colorize: true,
+                translateTime: "HH:MM:ss.l",
+                ignore: "pid,hostname",
+              },
             },
+          }
+        : {
+            level: process.env.LOG_LEVEL ?? "info",
           },
-        }
-      : {
-          level: process.env.LOG_LEVEL ?? 'info',
-        },
   };
 
   const app = Fastify({
@@ -62,16 +59,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   await app.register(fastifySwagger, {
     openapi: {
       info: {
-        title: 'FasterClaw API',
-        description: 'API for FasterClaw - Deploy OpenClaw instances on Fly.io',
-        version: '0.1.0',
+        title: "FasterClaw API",
+        description: "API for FasterClaw - Deploy OpenClaw instances on Fly.io",
+        version: "0.1.0",
       },
       components: {
         securitySchemes: {
           bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
           },
         },
       },
@@ -79,9 +76,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   await app.register(fastifySwaggerUi, {
-    routePrefix: '/docs',
+    routePrefix: "/docs",
     uiConfig: {
-      docExpansion: 'list',
+      docExpansion: "list",
       deepLinking: true,
     },
   });
@@ -91,18 +88,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   await app.register(cookiePlugin, options.cookie ?? {});
   await app.register(jwtPlugin, options.jwt ?? {});
 
-  // Register raw body plugin for Stripe webhook signature verification
-  await app.register(fastifyRawBody, {
-    field: 'rawBody',
-    global: false, // Only enable for routes that explicitly request it
-    encoding: false, // Return buffer instead of string
-    runFirst: true, // Run before other content type parsers
-  });
-
   // Register routes
   await app.register(healthRoutes);
   await app.register(authRoutes);
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  if (
+    process.env.GOOGLE_CLIENT_ID !== undefined &&
+    process.env.GOOGLE_CLIENT_ID !== "" &&
+    process.env.GOOGLE_CLIENT_SECRET !== undefined &&
+    process.env.GOOGLE_CLIENT_SECRET !== ""
+  ) {
     await app.register(googleAuthRoutes);
   }
   await app.register(instanceRoutes);

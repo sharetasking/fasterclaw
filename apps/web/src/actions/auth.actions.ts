@@ -1,36 +1,37 @@
 "use server";
 
 import { cookies } from "next/headers";
+import {
+  postAuthLogin,
+  postAuthRegister,
+  getAuthMe,
+  patchAuthProfile,
+  patchAuthPassword,
+  deleteAuthAccount,
+  type User,
+} from "@fasterclaw/api-client";
+import { createAuthenticatedClient, getApiClient } from "@/lib/api-client";
 
-export type AuthResponse = {
+export interface AuthResponse {
   success: boolean;
   error?: string;
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-};
+  user?: User;
+}
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
+    const client = getApiClient();
+    const { data, error } = await postAuthLogin({
+      client,
+      body: { email, password },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
+    if (!data) {
       return {
         success: false,
-        error: error.error || "Invalid credentials",
+        error: error.error,
       };
     }
-
-    const data = await response.json();
 
     // Set auth token cookie
     const cookieStore = await cookies();
@@ -60,23 +61,18 @@ export async function register(
   password: string
 ): Promise<AuthResponse> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name, email, password }),
+    const client = getApiClient();
+    const { data, error } = await postAuthRegister({
+      client,
+      body: { name, email, password },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
+    if (!data) {
       return {
         success: false,
-        error: error.error || "Registration failed",
+        error: error.error,
       };
     }
-
-    const data = await response.json();
 
     // Set auth token cookie
     const cookieStore = await cookies();
@@ -115,27 +111,16 @@ export async function setAuthToken(token: string): Promise<void> {
   });
 }
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<User | null> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const client = await createAuthenticatedClient();
+    const { data } = await getAuthMe({ client });
 
-    if (!token) {
+    if (!data) {
       return null;
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const user = await response.json();
-    return user;
+    return data;
   } catch (error) {
     console.error("Get current user error:", error);
     return null;
@@ -144,32 +129,29 @@ export async function getCurrentUser() {
 
 export async function updateProfile(name: string): Promise<AuthResponse> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
-
-    if (!token) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name }),
+    const client = await createAuthenticatedClient();
+    const { data, error } = await patchAuthProfile({
+      client,
+      body: { name },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return { success: false, error: error.error || "Failed to update profile" };
+    if (!data) {
+      return {
+        success: false,
+        error: error.error,
+      };
     }
 
-    const user = await response.json();
-    return { success: true, user };
+    return {
+      success: true,
+      user: data,
+    };
   } catch (error) {
     console.error("Update profile error:", error);
-    return { success: false, error: "An error occurred while updating profile" };
+    return {
+      success: false,
+      error: "An error occurred while updating profile",
+    };
   }
 }
 
@@ -178,62 +160,51 @@ export async function updatePassword(
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
-
-    if (!token) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/password`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ currentPassword, newPassword }),
+    const client = await createAuthenticatedClient();
+    const { error } = await patchAuthPassword({
+      client,
+      body: { currentPassword, newPassword },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      return { success: false, error: error.error || "Failed to update password" };
+    if (error) {
+      return {
+        success: false,
+        error: error.error,
+      };
     }
 
     return { success: true };
   } catch (error) {
     console.error("Update password error:", error);
-    return { success: false, error: "An error occurred while updating password" };
+    return {
+      success: false,
+      error: "An error occurred while updating password",
+    };
   }
 }
 
 export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const client = await createAuthenticatedClient();
+    const { error } = await deleteAuthAccount({ client });
 
-    if (!token) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/account`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      return { success: false, error: error.error || "Failed to delete account" };
+    if (error) {
+      return {
+        success: false,
+        error: error.error,
+      };
     }
 
     // Clear the auth cookie
-    const cookieStoreForDelete = await cookies();
-    cookieStoreForDelete.delete("auth_token");
+    const cookieStore = await cookies();
+    cookieStore.delete("auth_token");
 
     return { success: true };
   } catch (error) {
     console.error("Delete account error:", error);
-    return { success: false, error: "An error occurred while deleting account" };
+    return {
+      success: false,
+      error: "An error occurred while deleting account",
+    };
   }
 }

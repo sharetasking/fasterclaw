@@ -17,7 +17,7 @@ const personalities = [
     label: "Quick & Efficient",
     description: "Fast responses, great for simple tasks",
     icon: Zap,
-    model: "claude-3-haiku"
+    model: "claude-3-haiku",
   },
   {
     value: "balanced",
@@ -25,14 +25,14 @@ const personalities = [
     description: "Best mix of speed and capability",
     icon: Sparkles,
     model: "claude-3-sonnet",
-    recommended: true
+    recommended: true,
   },
   {
     value: "powerful",
     label: "Most Capable",
     description: "Handles complex conversations",
     icon: Brain,
-    model: "claude-3-opus"
+    model: "claude-3-opus",
   },
 ];
 
@@ -45,33 +45,35 @@ export default function NewAgentPage() {
     personality: "balanced",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!formData.telegramToken.match(/^\d+:[A-Za-z0-9_-]+$/)) {
+    if (/^\d+:[A-Za-z0-9_-]+$/.exec(formData.telegramToken) === null) {
       toast.error("Please enter a valid Telegram bot token");
       return;
     }
 
     setLoading(true);
 
-    try {
-      const result = await createInstance({
-        name: formData.name,
-        // TODO: Pass telegramToken and model to API when supported
-      });
+    void (async () => {
+      try {
+        const result = await createInstance({
+          name: formData.name,
+          // TODO: Pass telegramToken and model to API when supported
+        });
 
-      if (result) {
-        toast.success("Your agent is being created!");
-        router.push("/dashboard");
-      } else {
+        if (result !== null) {
+          toast.success("Your agent is being created!");
+          router.push("/dashboard");
+        } else {
+          toast.error("Failed to create agent");
+        }
+      } catch {
         toast.error("Failed to create agent");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      toast.error("Failed to create agent");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   return (
@@ -85,9 +87,7 @@ export default function NewAgentPage() {
           </Button>
         </Link>
         <h1 className="text-3xl font-bold">Create Your Agent</h1>
-        <p className="text-muted-foreground mt-1">
-          Set up a new AI assistant for your Telegram
-        </p>
+        <p className="text-muted-foreground mt-1">Set up a new AI assistant for your Telegram</p>
       </div>
 
       <div className="max-w-2xl">
@@ -97,9 +97,7 @@ export default function NewAgentPage() {
               <Bot className="h-5 w-5" />
               Agent Setup
             </CardTitle>
-            <CardDescription>
-              Just a few details and your agent will be live
-            </CardDescription>
+            <CardDescription>Just a few details and your agent will be live</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -110,7 +108,9 @@ export default function NewAgentPage() {
                   id="name"
                   placeholder="e.g., Customer Support, Sales Assistant"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                  }}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
@@ -125,7 +125,9 @@ export default function NewAgentPage() {
                   id="telegramToken"
                   placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
                   value={formData.telegramToken}
-                  onChange={(e) => setFormData({ ...formData, telegramToken: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, telegramToken: e.target.value });
+                  }}
                   required
                   className="font-mono text-sm"
                 />
@@ -134,8 +136,13 @@ export default function NewAgentPage() {
                   <div className="text-xs text-muted-foreground">
                     <p className="font-medium text-foreground mb-1">How to get your token:</p>
                     <ol className="list-decimal list-inside space-y-1">
-                      <li>Open Telegram and search for <span className="font-medium">@BotFather</span></li>
-                      <li>Send <code className="bg-background px-1 rounded">/newbot</code> and follow the prompts</li>
+                      <li>
+                        Open Telegram and search for <span className="font-medium">@BotFather</span>
+                      </li>
+                      <li>
+                        Send <code className="bg-background px-1 rounded">/newbot</code> and follow
+                        the prompts
+                      </li>
                       <li>Copy the token BotFather gives you and paste it above</li>
                     </ol>
                     <a
@@ -170,28 +177,30 @@ export default function NewAgentPage() {
                           name="personality"
                           value={option.value}
                           checked={formData.personality === option.value}
-                          onChange={(e) => setFormData({ ...formData, personality: e.target.value })}
+                          onChange={(e) => {
+                            setFormData({ ...formData, personality: e.target.value });
+                          }}
                           className="sr-only"
                         />
-                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
-                          formData.personality === option.value
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}>
+                        <div
+                          className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
+                            formData.personality === option.value
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{option.label}</span>
-                            {option.recommended && (
+                            {option.recommended === true && (
                               <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                 Recommended
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {option.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{option.description}</p>
                         </div>
                       </label>
                     );

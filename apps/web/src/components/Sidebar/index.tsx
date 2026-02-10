@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { ChevronLeft, ChevronRight, Sun, Moon, Monitor, X, Menu } from "lucide-react";
+import { ChevronLeft, Sun, Moon, Monitor, X } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import NavLink from "./NavLink";
 import { navigation } from "./navigation";
@@ -12,10 +12,10 @@ import { Separator } from "@/components/ui/separator";
 import UserMenu from "@/components/UserMenu";
 import { cn } from "@/lib/utils";
 
-type Props = {
+interface Props {
   visible: boolean;
   onClose: () => void;
-};
+}
 
 const Sidebar = ({ visible, onClose }: Props) => {
   const { collapsed, toggleCollapsed, isHydrated } = useSidebar();
@@ -39,16 +39,28 @@ const Sidebar = ({ visible, onClose }: Props) => {
   };
 
   const getThemeIcon = () => {
-    if (!mounted) return <Sun className="h-5 w-5" />;
-    if (theme === "system") return <Monitor className="h-5 w-5" />;
-    if (theme === "dark") return <Moon className="h-5 w-5" />;
+    if (!mounted) {
+      return <Sun className="h-5 w-5" />;
+    }
+    if (theme === "system") {
+      return <Monitor className="h-5 w-5" />;
+    }
+    if (theme === "dark") {
+      return <Moon className="h-5 w-5" />;
+    }
     return <Sun className="h-5 w-5" />;
   };
 
   const getThemeLabel = () => {
-    if (!mounted) return "Theme";
-    if (theme === "system") return "System";
-    if (theme === "dark") return "Dark";
+    if (!mounted) {
+      return "Theme";
+    }
+    if (theme === "system") {
+      return "System";
+    }
+    if (theme === "dark") {
+      return "Dark";
+    }
     return "Light";
   };
 
