@@ -110,6 +110,48 @@ async function getContainerPort(containerId: string): Promise<number | undefined
   }
 }
 
+/**
+ * Wait for container to be ready and configure OpenClaw.
+ * Enables gateway mode, Telegram plugin, and open DM policy for development.
+ */
+async function configureOpenClaw(containerName: string): Promise<void> {
+  // Wait for container to initialize
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  try {
+    // Configure gateway mode
+    await execAsync(
+      `docker exec ${containerName} sh -c "node openclaw.mjs config set gateway.mode local"`
+    );
+
+    // Enable Telegram channel
+    await execAsync(
+      `docker exec ${containerName} sh -c "node openclaw.mjs config set channels.telegram.enabled true"`
+    );
+
+    // Enable Telegram plugin
+    await execAsync(
+      `docker exec ${containerName} sh -c "node openclaw.mjs config set plugins.entries.telegram.enabled true"`
+    );
+
+    // Set open DM policy for development (no pairing required)
+    await execAsync(
+      `docker exec ${containerName} sh -c "node openclaw.mjs config set channels.telegram.allowFrom '[\\"*\\"]'"`
+    );
+    await execAsync(
+      `docker exec ${containerName} sh -c "node openclaw.mjs config set channels.telegram.dmPolicy open"`
+    );
+
+    // Restart the gateway to apply changes
+    await dockerExec(`restart ${containerName}`);
+
+    console.log(`OpenClaw configured for container ${containerName}`);
+  } catch (error) {
+    console.error(`Failed to configure OpenClaw: ${error}`);
+    // Don't throw - container is running, just not fully configured
+  }
+}
+
 export const dockerProvider: InstanceProvider = {
   name: "docker",
 
@@ -147,6 +189,9 @@ export const dockerProvider: InstanceProvider = {
 
     // Get the assigned port
     const port = await getContainerPort(containerId);
+
+    // Configure OpenClaw in background (don't block return)
+    void configureOpenClaw(containerName);
 
     return {
       providerId: containerId.slice(0, 12), // Short container ID

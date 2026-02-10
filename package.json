@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "turbo dev",
+    "dev:tunnel": "turbo dev:tunnel",
     "build": "turbo build",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",
