@@ -176,8 +176,8 @@ export function billingRoutes(fastify: FastifyInstance) {
           invoice.status_transitions.paid_at !== null
             ? new Date(invoice.status_transitions.paid_at * 1000).toISOString()
             : null,
-        invoiceUrl: invoice.hosted_invoice_url,
-        invoicePdf: invoice.invoice_pdf,
+        invoiceUrl: invoice.hosted_invoice_url ?? null,
+        invoicePdf: invoice.invoice_pdf ?? null,
       }));
     }
   );

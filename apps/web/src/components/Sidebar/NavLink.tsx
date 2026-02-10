@@ -20,7 +20,7 @@ const NavLink = ({ value, onClick, collapsed = false }: NavLinkProps) => {
 
   // Get the icon component from lucide-react
   const IconComponent: LucideIcon =
-    (LucideIcons as Record<string, LucideIcon>)[value.icon] ?? LucideIcons.Circle;
+    (LucideIcons as unknown as Record<string, LucideIcon>)[value.icon] ?? LucideIcons.Circle;
 
   return (
     <Link

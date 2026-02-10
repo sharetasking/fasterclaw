@@ -112,7 +112,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       const result = await getOrCreateStripeCustomer(mockUserId, mockEmail, mockName);
 
@@ -138,7 +138,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       vi.mocked(prisma.user.update).mockResolvedValue({
         id: mockUserId,
@@ -151,7 +151,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       const result = await getOrCreateStripeCustomer(mockUserId, mockEmail, mockName);
 
@@ -183,7 +183,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       vi.mocked(prisma.user.update).mockResolvedValue({
         id: mockUserId,
@@ -196,7 +196,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       const result = await getOrCreateStripeCustomer(mockUserId, mockEmail);
 
@@ -224,7 +224,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       vi.mocked(prisma.user.update).mockResolvedValue({
         id: mockUserId,
@@ -237,7 +237,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       const result = await getOrCreateStripeCustomer(mockUserId, mockEmail, mockName);
 
@@ -282,7 +282,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       await expect(getOrCreateStripeCustomer(mockUserId, mockEmail, mockName)).rejects.toThrow(
         "Stripe API error"
@@ -312,7 +312,7 @@ describe("Stripe Service", () => {
         subscriptionStatus: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      } as any);
 
       const mockError = new Error("Database update error");
       vi.mocked(prisma.user.update).mockRejectedValue(mockError);
@@ -326,7 +326,7 @@ describe("Stripe Service", () => {
   describe("verifyWebhookSignature", () => {
     const mockPayload = JSON.stringify({ type: "test.event" });
     const mockSignature = "t=123456,v1=signature";
-    const mockEvent = { type: "test.event" } as Stripe.Event;
+    const mockEvent = { type: "test.event" } as unknown as Stripe.Event;
 
     beforeEach(() => {
       vi.clearAllMocks();

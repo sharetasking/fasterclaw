@@ -91,7 +91,10 @@ describe("Billing Routes", () => {
     app.decorate("jwt", {
       sign: vi.fn().mockReturnValue("mock-token"),
       verify: vi.fn(),
-    });
+      options: {},
+      decode: vi.fn(),
+      lookupToken: vi.fn(),
+    } as any);
 
     // Mock authenticate decorator
     app.decorate("authenticate", async (request: any) => {

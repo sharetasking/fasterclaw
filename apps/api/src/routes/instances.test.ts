@@ -364,6 +364,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "STOPPED",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date("2024-01-01T00:00:00Z"),
         updatedAt: new Date("2024-01-01T00:00:00Z"),
       };
@@ -436,6 +438,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "RUNNING",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -472,6 +476,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "STOPPED",
         ipAddress: null,
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -508,6 +514,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "STOPPED",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -557,6 +565,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "RUNNING",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date("2024-01-01T00:00:00Z"),
         updatedAt: new Date("2024-01-01T00:00:00Z"),
       };
@@ -629,6 +639,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "STOPPED",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -665,6 +677,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "RUNNING",
         ipAddress: null,
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -701,6 +715,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "RUNNING",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -750,6 +766,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "STOPPED",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -798,6 +816,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "CREATING",
         ipAddress: null,
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -865,6 +885,8 @@ describe("Instance Routes", () => {
         region: "ewr",
         status: "STOPPED",
         ipAddress: "10.0.0.1",
+        telegramBotToken: null,
+        aiModel: "gpt-4",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
