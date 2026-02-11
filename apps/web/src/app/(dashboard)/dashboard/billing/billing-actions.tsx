@@ -29,9 +29,11 @@ export function BillingActions({
     setLoading(true);
     void (async () => {
       try {
-        const url = await createCheckoutSession(plan);
-        if (url !== null) {
-          window.location.href = url;
+        const result = await createCheckoutSession(plan);
+        if (result.success) {
+          window.location.href = result.data;
+        } else {
+          console.error("Checkout error:", result.error);
         }
       } catch (error) {
         console.error("Checkout error:", error);
@@ -45,9 +47,11 @@ export function BillingActions({
     setLoading(true);
     void (async () => {
       try {
-        const url = await createPortalSession();
-        if (url !== null) {
-          window.location.href = url;
+        const result = await createPortalSession();
+        if (result.success) {
+          window.location.href = result.data;
+        } else {
+          console.error("Portal error:", result.error);
         }
       } catch (error) {
         console.error("Portal error:", error);

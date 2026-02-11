@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import toast from "react-hot-toast";
+import { register } from "@/actions/auth.actions";
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -36,8 +37,12 @@ export default function CreateAccountPage() {
 
     void (async () => {
       try {
-        // TODO: Replace with actual API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const result = await register(formData.name, formData.email, formData.password);
+
+        if (!result.success) {
+          toast.error(result.error ?? "Failed to create account");
+          return;
+        }
 
         toast.success("Account created successfully!");
         router.push("/dashboard");

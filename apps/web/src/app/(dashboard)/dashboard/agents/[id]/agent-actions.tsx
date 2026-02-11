@@ -4,8 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, Square, Trash2 } from "lucide-react";
-import { startInstance, stopInstance, deleteInstance } from "@/actions/instances.actions";
+import { Play, Square, Trash2, RotateCcw } from "lucide-react";
+import {
+  startInstance,
+  stopInstance,
+  deleteInstance,
+  retryInstance,
+} from "@/actions/instances.actions";
 import toast from "react-hot-toast";
 
 interface AgentActionsProps {
@@ -20,12 +25,12 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
   const handleStart = () => {
     void (async () => {
       setLoading("start");
-      const success = await startInstance(agentId);
-      if (success) {
+      const result = await startInstance(agentId);
+      if (result.success) {
         toast.success("Agent started!");
         router.refresh();
       } else {
-        toast.error("Failed to start agent");
+        toast.error(result.error);
       }
       setLoading(null);
     })();
@@ -34,12 +39,12 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
   const handleStop = () => {
     void (async () => {
       setLoading("stop");
-      const success = await stopInstance(agentId);
-      if (success) {
+      const result = await stopInstance(agentId);
+      if (result.success) {
         toast.success("Agent paused");
         router.refresh();
       } else {
-        toast.error("Failed to pause agent");
+        toast.error(result.error);
       }
       setLoading(null);
     })();
@@ -51,18 +56,33 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
     }
     void (async () => {
       setLoading("delete");
-      const success = await deleteInstance(agentId);
-      if (success) {
+      const result = await deleteInstance(agentId);
+      if (result.success) {
         toast.success("Agent deleted");
         router.push("/dashboard");
       } else {
-        toast.error("Failed to delete agent");
+        toast.error(result.error);
+      }
+      setLoading(null);
+    })();
+  };
+
+  const handleRetry = () => {
+    void (async () => {
+      setLoading("retry");
+      const result = await retryInstance(agentId);
+      if (result.success) {
+        toast.success("Retrying agent provisioning...");
+        router.refresh();
+      } else {
+        toast.error(result.error);
       }
       setLoading(null);
     })();
   };
 
   const isRunning = status === "RUNNING";
+  const isFailed = status === "FAILED";
   const canControl = status === "RUNNING" || status === "STOPPED";
 
   return (
@@ -71,6 +91,17 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
         <CardTitle className="text-base">Actions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
+        {isFailed && (
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleRetry}
+            disabled={loading !== null}
+          >
+            <RotateCcw className="h-4 w-4" />
+            {loading === "retry" ? "Retrying..." : "Retry Provisioning"}
+          </Button>
+        )}
         {canControl && (
           <>
             {isRunning ? (

@@ -45,10 +45,15 @@ export type Instance = {
   id: string;
   userId: string;
   name: string;
+  provider: string;
   flyAppName: string | null;
   flyMachineId: string | null;
+  dockerContainerId: string | null;
+  dockerPort: number | null;
   status: string;
   region: string;
+  aiModel: string;
+  telegramBotToken: string | null;
   ipAddress: string | null;
   createdAt: string;
   updatedAt: string;
@@ -56,13 +61,32 @@ export type Instance = {
 
 export type CreateInstanceRequest = {
   name: string;
+  telegramBotToken: string;
   region?: string;
+  aiModel?: string;
 };
 
 export type InstanceList = Array<Instance>;
 
+export type UpdateInstanceRequest = {
+  name?: string;
+  telegramBotToken?: string;
+  aiModel?: string;
+};
+
 export type ApiSuccess = {
   success: boolean;
+};
+
+export type ValidateTelegramTokenResponse = {
+  valid: boolean;
+  botUsername?: string;
+  botName?: string;
+  error?: string;
+};
+
+export type ValidateTelegramTokenRequest = {
+  token: string;
 };
 
 export type CheckoutResponse = {
@@ -96,6 +120,7 @@ export type Subscription = {
   stripeSubscriptionId: string;
   status: string;
   plan: "starter" | "pro" | "enterprise";
+  instanceLimit: number;
   currentPeriodStart: string | null;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
@@ -407,6 +432,42 @@ export type GetInstancesByIdResponses = {
 
 export type GetInstancesByIdResponse = GetInstancesByIdResponses[keyof GetInstancesByIdResponses];
 
+export type PatchInstancesByIdData = {
+  body?: UpdateInstanceRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/instances/{id}";
+};
+
+export type PatchInstancesByIdErrors = {
+  /**
+   * Bad request (instance must be stopped)
+   */
+  400: ApiError;
+  /**
+   * Unauthorized
+   */
+  401: ApiError;
+  /**
+   * Instance not found
+   */
+  404: ApiError;
+};
+
+export type PatchInstancesByIdError = PatchInstancesByIdErrors[keyof PatchInstancesByIdErrors];
+
+export type PatchInstancesByIdResponses = {
+  /**
+   * Instance updated
+   */
+  200: Instance;
+};
+
+export type PatchInstancesByIdResponse =
+  PatchInstancesByIdResponses[keyof PatchInstancesByIdResponses];
+
 export type PostInstancesByIdStartData = {
   body?: never;
   path: {
@@ -480,6 +541,74 @@ export type PostInstancesByIdStopResponses = {
 
 export type PostInstancesByIdStopResponse =
   PostInstancesByIdStopResponses[keyof PostInstancesByIdStopResponses];
+
+export type PostInstancesByIdRetryData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/instances/{id}/retry";
+};
+
+export type PostInstancesByIdRetryErrors = {
+  /**
+   * Bad request (instance must be in failed state)
+   */
+  400: ApiError;
+  /**
+   * Unauthorized
+   */
+  401: ApiError;
+  /**
+   * Instance not found
+   */
+  404: ApiError;
+};
+
+export type PostInstancesByIdRetryError =
+  PostInstancesByIdRetryErrors[keyof PostInstancesByIdRetryErrors];
+
+export type PostInstancesByIdRetryResponses = {
+  /**
+   * Instance retry started
+   */
+  200: Instance;
+};
+
+export type PostInstancesByIdRetryResponse =
+  PostInstancesByIdRetryResponses[keyof PostInstancesByIdRetryResponses];
+
+export type PostInstancesValidateTelegramTokenData = {
+  body?: ValidateTelegramTokenRequest;
+  path?: never;
+  query?: never;
+  url: "/instances/validate-telegram-token";
+};
+
+export type PostInstancesValidateTelegramTokenErrors = {
+  /**
+   * Bad request
+   */
+  400: ApiError;
+  /**
+   * Unauthorized
+   */
+  401: ApiError;
+};
+
+export type PostInstancesValidateTelegramTokenError =
+  PostInstancesValidateTelegramTokenErrors[keyof PostInstancesValidateTelegramTokenErrors];
+
+export type PostInstancesValidateTelegramTokenResponses = {
+  /**
+   * Token validation result
+   */
+  200: ValidateTelegramTokenResponse;
+};
+
+export type PostInstancesValidateTelegramTokenResponse =
+  PostInstancesValidateTelegramTokenResponses[keyof PostInstancesValidateTelegramTokenResponses];
 
 export type PostBillingCheckoutData = {
   body?: CreateCheckoutRequest;
@@ -606,6 +735,10 @@ export type PostBillingWebhookErrors = {
    * Bad request
    */
   400: ApiError;
+  /**
+   * Server configuration error
+   */
+  500: ApiError;
 };
 
 export type PostBillingWebhookError = PostBillingWebhookErrors[keyof PostBillingWebhookErrors];

@@ -169,3 +169,23 @@ export function verifyWebhookSignature(payload: string | Buffer, signature: stri
 
   return getStripe().webhooks.constructEvent(payload, signature, webhookSecret);
 }
+
+/**
+ * Create a Stripe billing portal session
+ */
+export async function createBillingPortalSession(
+  customerId: string,
+  returnUrl: string
+): Promise<string> {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (stripeKey === undefined || stripeKey === "") {
+    throw new Error("STRIPE_SECRET_KEY environment variable is required for billing operations");
+  }
+
+  const session = await getStripe().billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+  });
+
+  return session.url;
+}
