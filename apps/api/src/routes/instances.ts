@@ -597,6 +597,10 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         return reply.code(400).send({ error: "Only failed instances can be retried" });
       }
 
+      if (!instance.telegramBotToken) {
+        return reply.code(400).send({ error: "Instance is missing Telegram bot token" });
+      }
+
       // Use current provider from env (allows switching providers on retry)
       const providerType = getProviderType();
       const provider = getProvider();
@@ -631,7 +635,7 @@ export function instanceRoutes(fastify: FastifyInstance): void {
           const result = await provider.createInstance({
             name: instance.name,
             userId,
-            telegramBotToken: instance.telegramBotToken,
+            telegramBotToken: instance.telegramBotToken!, // Validated above before async IIFE
             aiProvider,
             aiApiKey: apiKey,
             aiModel,
