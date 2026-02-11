@@ -41,6 +41,9 @@ import type {
   PostInstancesByIdStopData,
   PostInstancesByIdStopResponse,
   PostInstancesByIdStopError,
+  PostInstancesByIdRetryData,
+  PostInstancesByIdRetryResponse,
+  PostInstancesByIdRetryError,
   PostInstancesValidateTelegramTokenData,
   PostInstancesValidateTelegramTokenResponse,
   PostInstancesValidateTelegramTokenError,
@@ -371,6 +374,28 @@ export const postInstancesByIdStop = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/instances/{id}/stop",
+    ...options,
+  });
+};
+
+/**
+ * Retry provisioning a failed instance
+ */
+export const postInstancesByIdRetry = <ThrowOnError extends boolean = false>(
+  options: Options<PostInstancesByIdRetryData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).post<
+    PostInstancesByIdRetryResponse,
+    PostInstancesByIdRetryError,
+    ThrowOnError
+  >({
+    security: [
+      {
+        scheme: "bearer",
+        type: "http",
+      },
+    ],
+    url: "/instances/{id}/retry",
     ...options,
   });
 };

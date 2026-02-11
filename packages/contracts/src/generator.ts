@@ -510,6 +510,51 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "post",
+  path: "/instances/{id}/retry",
+  tags: ["Instances"],
+  summary: "Retry provisioning a failed instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: InstanceIdParamSchema,
+  },
+  responses: {
+    200: {
+      description: "Instance retry started",
+      content: {
+        "application/json": {
+          schema: InstanceSchema,
+        },
+      },
+    },
+    400: {
+      description: "Bad request (instance must be in failed state)",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
   method: "delete",
   path: "/instances/{id}",
   tags: ["Instances"],

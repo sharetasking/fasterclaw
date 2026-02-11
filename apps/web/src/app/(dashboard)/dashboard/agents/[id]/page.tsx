@@ -11,6 +11,9 @@ const statusConfig = {
   RUNNING: { label: "Live", variant: "default" as const, dot: "bg-green-500" },
   STOPPED: { label: "Paused", variant: "secondary" as const, dot: "bg-gray-400" },
   CREATING: { label: "Starting...", variant: "secondary" as const, dot: "bg-yellow-500" },
+  PROVISIONING: { label: "Provisioning...", variant: "secondary" as const, dot: "bg-yellow-500" },
+  STARTING: { label: "Starting...", variant: "secondary" as const, dot: "bg-yellow-500" },
+  STOPPING: { label: "Stopping...", variant: "secondary" as const, dot: "bg-yellow-500" },
   FAILED: { label: "Failed", variant: "destructive" as const, dot: "bg-red-500" },
   DELETED: { label: "Deleted", variant: "secondary" as const, dot: "bg-gray-400" },
 };

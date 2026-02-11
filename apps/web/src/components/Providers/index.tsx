@@ -16,20 +16,20 @@ const Providers = ({ children }: Props) => {
         toastOptions={{
           duration: 4000,
           style: {
-            background: "hsl(var(--card))",
-            color: "hsl(var(--card-foreground))",
-            border: "1px solid hsl(var(--border))",
+            background: "var(--color-card)",
+            color: "var(--color-card-foreground)",
+            border: "1px solid var(--color-border)",
           },
           success: {
             iconTheme: {
-              primary: "hsl(var(--primary))",
-              secondary: "hsl(var(--primary-foreground))",
+              primary: "var(--color-primary)",
+              secondary: "var(--color-primary-foreground)",
             },
           },
           error: {
             iconTheme: {
-              primary: "hsl(var(--destructive))",
-              secondary: "hsl(var(--destructive-foreground))",
+              primary: "var(--color-destructive)",
+              secondary: "var(--color-destructive-foreground)",
             },
           },
         }}

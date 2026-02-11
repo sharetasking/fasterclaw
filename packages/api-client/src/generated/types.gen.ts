@@ -542,6 +542,43 @@ export type PostInstancesByIdStopResponses = {
 export type PostInstancesByIdStopResponse =
   PostInstancesByIdStopResponses[keyof PostInstancesByIdStopResponses];
 
+export type PostInstancesByIdRetryData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/instances/{id}/retry";
+};
+
+export type PostInstancesByIdRetryErrors = {
+  /**
+   * Bad request (instance must be in failed state)
+   */
+  400: ApiError;
+  /**
+   * Unauthorized
+   */
+  401: ApiError;
+  /**
+   * Instance not found
+   */
+  404: ApiError;
+};
+
+export type PostInstancesByIdRetryError =
+  PostInstancesByIdRetryErrors[keyof PostInstancesByIdRetryErrors];
+
+export type PostInstancesByIdRetryResponses = {
+  /**
+   * Instance retry started
+   */
+  200: Instance;
+};
+
+export type PostInstancesByIdRetryResponse =
+  PostInstancesByIdRetryResponses[keyof PostInstancesByIdRetryResponses];
+
 export type PostInstancesValidateTelegramTokenData = {
   body?: ValidateTelegramTokenRequest;
   path?: never;

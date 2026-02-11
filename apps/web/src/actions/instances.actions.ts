@@ -6,6 +6,7 @@ import {
   postInstances,
   postInstancesByIdStart,
   postInstancesByIdStop,
+  postInstancesByIdRetry,
   deleteInstancesById,
   postInstancesValidateTelegramToken,
   type Instance,
@@ -165,5 +166,24 @@ export async function validateTelegramToken(
   } catch (error) {
     console.error("Validate Telegram token error:", error);
     return { valid: false, error: "Failed to validate token" };
+  }
+}
+
+export async function retryInstance(id: string): Promise<ActionResult<Instance>> {
+  try {
+    const client = await createAuthenticatedClient();
+    const { data, error } = await postInstancesByIdRetry({
+      client,
+      path: { id },
+    });
+
+    if (error !== undefined) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Retry instance error:", error);
+    return { success: false, error: getErrorMessage(error) };
   }
 }

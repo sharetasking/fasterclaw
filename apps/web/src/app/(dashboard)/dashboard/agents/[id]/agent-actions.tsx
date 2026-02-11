@@ -4,8 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, Square, Trash2 } from "lucide-react";
-import { startInstance, stopInstance, deleteInstance } from "@/actions/instances.actions";
+import { Play, Square, Trash2, RotateCcw } from "lucide-react";
+import {
+  startInstance,
+  stopInstance,
+  deleteInstance,
+  retryInstance,
+} from "@/actions/instances.actions";
 import toast from "react-hot-toast";
 
 interface AgentActionsProps {
@@ -62,7 +67,22 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
     })();
   };
 
+  const handleRetry = () => {
+    void (async () => {
+      setLoading("retry");
+      const result = await retryInstance(agentId);
+      if (result.success) {
+        toast.success("Retrying agent provisioning...");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+      setLoading(null);
+    })();
+  };
+
   const isRunning = status === "RUNNING";
+  const isFailed = status === "FAILED";
   const canControl = status === "RUNNING" || status === "STOPPED";
 
   return (
@@ -71,6 +91,17 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
         <CardTitle className="text-base">Actions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
+        {isFailed && (
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleRetry}
+            disabled={loading !== null}
+          >
+            <RotateCcw className="h-4 w-4" />
+            {loading === "retry" ? "Retrying..." : "Retry Provisioning"}
+          </Button>
+        )}
         {canControl && (
           <>
             {isRunning ? (

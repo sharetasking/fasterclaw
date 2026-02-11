@@ -558,6 +558,117 @@ export function instanceRoutes(fastify: FastifyInstance): void {
     }
   );
 
+  // POST /instances/:id/retry - Retry a failed instance
+  app.post(
+    "/instances/:id/retry",
+    {
+      schema: {
+        tags: ["Instances"],
+        summary: "Retry provisioning a failed instance",
+        params: z.object({
+          id: z.string(),
+        }),
+        response: {
+          200: InstanceSchema,
+          400: ApiErrorSchema,
+          401: ApiErrorSchema,
+          404: ApiErrorSchema,
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const userId = request.user.id;
+      const { id } = request.params;
+
+      const instance = await prisma.instance.findFirst({
+        where: {
+          id,
+          userId,
+        },
+      });
+
+      if (instance === null) {
+        return reply.code(404).send({ error: "Instance not found" });
+      }
+
+      if (instance.status !== "FAILED") {
+        return reply.code(400).send({ error: "Only failed instances can be retried" });
+      }
+
+      // Use current provider from env (allows switching providers on retry)
+      const providerType = getProviderType();
+      const provider = getProvider();
+
+      // Reset instance status and update provider
+      const updatedInstance = await prisma.instance.update({
+        where: { id: instance.id },
+        data: {
+          status: "CREATING",
+          provider: providerType,
+          // Clear old provider-specific data
+          flyMachineId: null,
+          flyAppName: null,
+          dockerContainerId: null,
+          dockerPort: null,
+          ipAddress: null,
+        },
+      });
+
+      // Re-provision in background
+      void (async () => {
+        try {
+          const aiModel = instance.aiModel;
+          const aiProvider = getAIProvider(aiModel);
+          const apiKey = getAPIKeyForProvider(aiProvider);
+
+          await prisma.instance.update({
+            where: { id: instance.id },
+            data: { status: "PROVISIONING" },
+          });
+
+          const result = await provider.createInstance({
+            name: instance.name,
+            userId,
+            telegramBotToken: instance.telegramBotToken,
+            aiProvider,
+            aiApiKey: apiKey,
+            aiModel,
+            region: instance.region,
+          });
+
+          const updateData: Record<string, unknown> = {
+            ipAddress: result.ipAddress,
+            status: "RUNNING",
+          };
+
+          if (providerType === "fly") {
+            updateData.flyMachineId = result.providerId;
+            updateData.flyAppName = result.providerAppId;
+          } else {
+            updateData.dockerContainerId = result.providerId;
+            updateData.dockerPort = result.port;
+          }
+
+          await prisma.instance.update({
+            where: { id: instance.id },
+            data: updateData,
+          });
+        } catch (error: unknown) {
+          const msg = getErrorMessage(error, "Unknown provisioning error");
+          app.log.error(error, `Failed to retry instance ${instance.id}: ${msg}`);
+          await prisma.instance.update({
+            where: { id: instance.id },
+            data: { status: "FAILED" },
+          });
+        }
+      })();
+
+      return await reply.send(formatInstanceResponse(updatedInstance));
+    }
+  );
+
   // POST /instances/:id/sync - Sync instance status from provider
   app.post(
     "/instances/:id/sync",
