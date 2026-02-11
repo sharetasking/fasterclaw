@@ -13,6 +13,7 @@ type FieldProps = {
     placeholder?: string;
     required?: boolean;
     icon?: string;
+    disabled?: boolean;
 };
 
 const Field = ({
@@ -27,6 +28,7 @@ const Field = ({
     placeholder,
     required,
     icon,
+    disabled,
 }: FieldProps) => {
     const handleKeyDown = (event: any) => {
         const remainingChars = 880 - value.length;
@@ -57,12 +59,13 @@ const Field = ({
                                 icon && "pl-[3.125rem]"
                             } ${
                                 value !== "" && "bg-transparent border-n-3/50"
-                            }`}
+                            } ${disabled && "opacity-50 cursor-not-allowed"}`}
                             value={value}
                             onChange={onChange}
                             onKeyDown={handleKeyDown}
                             placeholder={placeholder}
                             required={required}
+                            disabled={disabled}
                         ></textarea>
                     ) : (
                         <input
@@ -72,13 +75,14 @@ const Field = ({
                                 } ${
                                     value !== "" &&
                                     "bg-transparent border-n-3/50"
-                                } ${classInput}`
+                                } ${disabled && "opacity-50 cursor-not-allowed"} ${classInput}`
                             )}
                             type={type || "text"}
                             value={value}
                             onChange={onChange}
                             placeholder={placeholder}
                             required={required}
+                            disabled={disabled}
                         />
                     )}
                     <Icon

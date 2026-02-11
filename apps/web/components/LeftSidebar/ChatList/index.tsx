@@ -38,7 +38,16 @@ const ChatList = ({ visible, items }: ChatListProps) => {
                             className="fill-n-4 transition-transform ui-open:rotate-180"
                             name="arrow-down"
                         />
-                        {!visible && <div className="ml-5">Chat list</div>}
+                        {!visible && (
+                            <div className="ml-5 flex items-center gap-2">
+                                Chat list
+                                {process.env.NODE_ENV === "development" && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase border border-yellow-500 text-yellow-500 rounded">
+                                        dev
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </Disclosure.Button>
                     <Transition
                         enter="transition duration-100 ease-out"

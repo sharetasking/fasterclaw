@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "@/components/Image";
 import { getCurrentUser } from "@/actions/auth.actions";
-import type { User } from "@fasterclaw/api-client";
+import { getSubscription } from "@/actions/billing.actions";
+import type { User, Subscription } from "@fasterclaw/api-client";
 
 type ProfileProps = {
     visible?: boolean;
@@ -12,15 +13,22 @@ type ProfileProps = {
 
 const Profile = ({ visible }: ProfileProps) => {
     const [user, setUser] = useState<User | null>(null);
+    const [subscription, setSubscription] = useState<Subscription | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        const fetchUser = async () => {
+        const fetchData = async () => {
             const currentUser = await getCurrentUser();
             setUser(currentUser);
+
+            const subscriptionResult = await getSubscription();
+            if (subscriptionResult.success) {
+                setSubscription(subscriptionResult.data.subscription);
+            }
+
             setLoading(false);
         };
-        fetchUser();
+        fetchData();
     }, []);
 
     if (loading) {
@@ -48,6 +56,13 @@ const Profile = ({ visible }: ProfileProps) => {
     if (!user) {
         return null;
     }
+
+    // Determine plan name and button text
+    const planName = subscription?.plan
+        ? subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)
+        : "Starter";
+    const isPaid = subscription?.plan && subscription.plan !== "starter";
+    const buttonText = isPaid ? "Manage Plan" : "Upgrade to Pro";
 
     return (
         <div
@@ -83,14 +98,14 @@ const Profile = ({ visible }: ProfileProps) => {
                                 </div>
                             </div>
                             <div className="shrnik-0 ml-auto self-start px-3 bg-primary-2 rounded-lg caption1 font-bold text-n-7">
-                                Free
+                                {planName}
                             </div>
                         </>
                     )}
                 </div>
                 {!visible && (
                     <Link className="btn-stroke-dark w-full mt-2" href="/pricing">
-                        Upgraded to Pro
+                        {buttonText}
                     </Link>
                 )}
             </div>

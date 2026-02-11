@@ -10,7 +10,7 @@ import Settings from "@/components/Settings";
 import { getCurrentUser, logout } from "@/actions/auth.actions";
 import type { User } from "@fasterclaw/api-client";
 
-import { settings } from "@/constants/settings";
+import { getVisibleSettings } from "@/constants/settings";
 
 type ProfileProps = {};
 
@@ -35,6 +35,16 @@ const Profile = ({}: ProfileProps) => {
     };
 
     const menu = [
+        {
+            title: "Dashboard",
+            icon: "container",
+            onClick: () => router.push("/dashboard"),
+        },
+        {
+            title: "Billing",
+            icon: "card",
+            onClick: () => router.push("/dashboard/billing"),
+        },
         {
             title: "Settings",
             icon: "settings-fill",
@@ -126,7 +136,7 @@ const Profile = ({}: ProfileProps) => {
                 visible={visibleSettings}
                 onClose={() => setVisibleSettings(false)}
             >
-                <Settings items={settings} />
+                <Settings items={getVisibleSettings()} />
             </Modal>
         </>
     );

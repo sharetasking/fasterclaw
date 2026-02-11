@@ -1,21 +1,19 @@
 import Link from "next/link";
-import Image from "@/components/Image";
 
-type TestProps = {
+type LogoProps = {
     className?: string;
     dark?: boolean;
 };
 
-const Test = ({ className, dark }: TestProps) => (
-    <Link className={`flex w-[11.88rem] ${className}`} href="/">
-        <Image
-            className="w-full h-auto"
-            src={dark ? "/images/logo-dark.svg" : "/images/logo.svg"}
-            width={190}
-            height={40}
-            alt="Brainwave"
-        />
+const Logo = ({ className, dark }: LogoProps) => (
+    <Link
+        className={`flex items-center text-2xl font-bold tracking-tight ${
+            dark ? "text-n-7" : "text-n-1"
+        } ${className}`}
+        href="/"
+    >
+        FasterClaw
     </Link>
 );
 
-export default Test;
+export default Logo;

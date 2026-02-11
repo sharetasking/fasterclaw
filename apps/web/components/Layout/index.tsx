@@ -18,17 +18,20 @@ type LayoutProps = {
     children: React.ReactNode;
 };
 
+const SIDEBAR_STORAGE_KEY = "sidebar-collapsed";
+
 const Layout = ({
     smallSidebar,
     hideRightSidebar,
     backUrl,
     children,
 }: LayoutProps) => {
-    const [visibleSidebar, setVisibleSidebar] = useState<any>(
+    const [visibleSidebar, setVisibleSidebar] = useState<boolean>(
         smallSidebar || false
     );
     const [visibleRightSidebar, setVisibleRightSidebar] =
         useState<boolean>(false);
+    const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
     const isDesktop = useMediaQuery({
         query: "(max-width: 1179px)",
@@ -41,9 +44,29 @@ const Layout = ({
         enablePageScroll();
     };
 
+    // Load sidebar state from localStorage on mount
     useEffect(() => {
-        setVisibleSidebar(smallSidebar || isDesktop);
-    }, [isDesktop, smallSidebar]);
+        if (smallSidebar) {
+            setVisibleSidebar(true);
+            setIsInitialized(true);
+            return;
+        }
+
+        const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+        if (stored !== null) {
+            setVisibleSidebar(stored === "true");
+        } else {
+            setVisibleSidebar(isDesktop);
+        }
+        setIsInitialized(true);
+    }, [smallSidebar]);
+
+    // Persist sidebar state to localStorage when it changes (only after initialization)
+    useEffect(() => {
+        if (isInitialized && !smallSidebar) {
+            localStorage.setItem(SIDEBAR_STORAGE_KEY, String(visibleSidebar));
+        }
+    }, [visibleSidebar, isInitialized, smallSidebar]);
 
     return (
         <>

@@ -34,7 +34,17 @@ const Navigation = ({ visible, items }: NavigationProps) => {
                         key={index}
                     >
                         <Icon className={item.color} name={item.icon} />
-                        {!visible && <div className="ml-5">{item.title}</div>}
+                        {!visible && (
+                            <div className="ml-5 flex items-center gap-2">
+                                {item.title}
+                                {item.title === "Updates & FAQ" &&
+                                    process.env.NODE_ENV === "development" && (
+                                        <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase border border-yellow-500 text-yellow-500 rounded">
+                                            dev
+                                        </span>
+                                    )}
+                            </div>
+                        )}
                     </Link>
                 ) : (
                     <button

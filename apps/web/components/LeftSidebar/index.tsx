@@ -14,7 +14,7 @@ import ToggleTheme from "./ToggleTheme";
 
 import { chatList } from "@/mocks/chatList";
 import { resultSearch } from "@/mocks/resultSearch";
-import { settings } from "@/constants/settings";
+import { getVisibleSettings } from "@/constants/settings";
 import { twMerge } from "tailwind-merge";
 
 type LeftSidebarProps = {
@@ -61,15 +61,21 @@ const LeftSidebar = ({
             onClick: () => setVisibleSearch(true),
         },
         {
-            title: "Manage subscription",
+            title: "Dashboard",
+            icon: "container",
+            color: "fill-accent-1",
+            url: "/dashboard",
+        },
+        {
+            title: "Billing",
             icon: "card",
             color: "fill-accent-4",
-            url: "/pricing",
+            url: "/dashboard/billing",
         },
         {
             title: "Updates & FAQ",
             icon: "barcode",
-            color: "fill-accent-1",
+            color: "fill-primary-2",
             url: "/updates-and-faq",
         },
         {
@@ -144,7 +150,7 @@ const LeftSidebar = ({
                 visible={visibleSettings}
                 onClose={() => setVisibleSettings(false)}
             >
-                <Settings items={settings} />
+                <Settings items={getVisibleSettings()} />
             </Modal>
         </>
     );
