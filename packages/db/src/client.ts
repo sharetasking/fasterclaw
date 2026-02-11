@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+import { createEncryptionExtension } from "./middleware/encryption.js";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: ReturnType<typeof createPrismaClient> | undefined;
 };
 
 /**
@@ -15,12 +16,20 @@ const globalForPrisma = globalThis as unknown as {
  * - connect_timeout=30 (seconds to establish new connection)
  *
  * Example: postgresql://user:pass@host:5432/db?connection_limit=25&pool_timeout=30
+ *
+ * For encryption of sensitive fields (telegramBotToken), set:
+ * - ENCRYPTION_KEY (generate with: openssl rand -hex 32)
  */
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrismaClient() {
+  const client = new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
+
+  // Add encryption extension for sensitive fields
+  return client.$extends(createEncryptionExtension());
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

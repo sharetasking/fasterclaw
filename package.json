@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "turbo dev",
+    "dev:tunnel": "turbo dev:tunnel",
     "build": "turbo build",
+    "generate": "pnpm --filter @fasterclaw/contracts build && pnpm --filter @fasterclaw/api-client build",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",
     "typecheck": "turbo typecheck",
@@ -16,7 +18,8 @@
     "prepare": "husky",
     "db:generate": "pnpm --filter @fasterclaw/db db:generate",
     "db:migrate": "pnpm --filter @fasterclaw/db db:migrate",
-    "db:push": "pnpm --filter @fasterclaw/db db:push"
+    "db:push": "pnpm --filter @fasterclaw/db db:push",
+    "db:studio": "pnpm --filter @fasterclaw/db db:studio"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

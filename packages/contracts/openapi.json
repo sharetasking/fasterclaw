@@ -149,6 +149,9 @@
           "name": {
             "type": "string"
           },
+          "provider": {
+            "type": "string"
+          },
           "flyAppName": {
             "type": "string",
             "nullable": true
@@ -157,11 +160,26 @@
             "type": "string",
             "nullable": true
           },
+          "dockerContainerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "dockerPort": {
+            "type": "number",
+            "nullable": true
+          },
           "status": {
             "type": "string"
           },
           "region": {
             "type": "string"
+          },
+          "aiModel": {
+            "type": "string"
+          },
+          "telegramBotToken": {
+            "type": "string",
+            "nullable": true
           },
           "ipAddress": {
             "type": "string",
@@ -180,10 +198,15 @@
           "id",
           "userId",
           "name",
+          "provider",
           "flyAppName",
           "flyMachineId",
+          "dockerContainerId",
+          "dockerPort",
           "status",
           "region",
+          "aiModel",
+          "telegramBotToken",
           "ipAddress",
           "createdAt",
           "updatedAt"
@@ -197,17 +220,42 @@
             "minLength": 1,
             "maxLength": 50
           },
+          "telegramBotToken": {
+            "type": "string",
+            "minLength": 1
+          },
           "region": {
             "type": "string",
             "default": "lax"
+          },
+          "aiModel": {
+            "type": "string",
+            "default": "claude-sonnet-4-0"
           }
         },
-        "required": ["name"]
+        "required": ["name", "telegramBotToken"]
       },
       "InstanceList": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Instance"
+        }
+      },
+      "UpdateInstanceRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "telegramBotToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aiModel": {
+            "type": "string"
+          }
         }
       },
       "ApiSuccess": {
@@ -218,6 +266,34 @@
           }
         },
         "required": ["success"]
+      },
+      "ValidateTelegramTokenResponse": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "botUsername": {
+            "type": "string"
+          },
+          "botName": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": ["valid"]
+      },
+      "ValidateTelegramTokenRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["token"]
       },
       "CheckoutResponse": {
         "type": "object",
@@ -315,6 +391,9 @@
             "nullable": true,
             "enum": ["starter", "pro", "enterprise"]
           },
+          "instanceLimit": {
+            "type": "number"
+          },
           "currentPeriodStart": {
             "type": "string",
             "nullable": true,
@@ -343,6 +422,7 @@
           "stripeSubscriptionId",
           "status",
           "plan",
+          "instanceLimit",
           "currentPeriodStart",
           "currentPeriodEnd",
           "cancelAtPeriodEnd",
@@ -793,6 +873,77 @@
           }
         }
       },
+      "patch": {
+        "tags": ["Instances"],
+        "summary": "Update an instance (must be stopped)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "cuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInstanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instance updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (instance must be stopped)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": ["Instances"],
         "summary": "Delete an instance",
@@ -984,6 +1135,122 @@
         }
       }
     },
+    "/instances/{id}/retry": {
+      "post": {
+        "tags": ["Instances"],
+        "summary": "Retry provisioning a failed instance",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "cuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instance retry started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (instance must be in failed state)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/instances/validate-telegram-token": {
+      "post": {
+        "tags": ["Instances"],
+        "summary": "Validate a Telegram bot token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateTelegramTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateTelegramTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/billing/checkout": {
       "post": {
         "tags": ["Billing"],
@@ -1162,6 +1429,16 @@
           },
           "400": {
             "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server configuration error",
             "content": {
               "application/json": {
                 "schema": {

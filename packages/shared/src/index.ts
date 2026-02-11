@@ -47,12 +47,18 @@ export {
   InstanceSchema,
   InstanceListSchema,
   CreateInstanceRequestSchema,
+  UpdateInstanceRequestSchema,
   InstanceIdParamSchema,
+  ValidateTelegramTokenRequestSchema,
+  ValidateTelegramTokenResponseSchema,
   type InstanceStatus,
   type Instance,
   type InstanceList,
   type CreateInstanceRequest,
+  type UpdateInstanceRequest,
   type InstanceIdParam,
+  type ValidateTelegramTokenRequest,
+  type ValidateTelegramTokenResponse,
 } from "./schemas/instances.js";
 
 // Billing schemas
