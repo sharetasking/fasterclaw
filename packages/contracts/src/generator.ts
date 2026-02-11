@@ -752,6 +752,14 @@ registry.registerPath({
         },
       },
     },
+    500: {
+      description: "Server configuration error",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
   },
 });
 

@@ -177,8 +177,9 @@ export async function createBillingPortalSession(
   customerId: string,
   returnUrl: string
 ): Promise<string> {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY environment variable is required for billing operations');
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (stripeKey === undefined || stripeKey === "") {
+    throw new Error("STRIPE_SECRET_KEY environment variable is required for billing operations");
   }
 
   const session = await getStripe().billingPortal.sessions.create({

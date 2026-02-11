@@ -17,14 +17,14 @@ const personalities = [
     label: "Quick & Efficient",
     description: "Fast responses, great for simple tasks",
     icon: Zap,
-    model: "claude-3-haiku",
+    model: "claude-3-5-haiku-latest",
   },
   {
     value: "balanced",
     label: "Balanced",
     description: "Best mix of speed and capability",
     icon: Sparkles,
-    model: "claude-3-sonnet",
+    model: "claude-sonnet-4-0",
     recommended: true,
   },
   {
@@ -32,7 +32,7 @@ const personalities = [
     label: "Most Capable",
     description: "Handles complex conversations",
     icon: Brain,
-    model: "claude-3-opus",
+    model: "claude-opus-4-0",
   },
 ];
 
@@ -59,7 +59,7 @@ export default function NewAgentPage() {
       try {
         // Get the model based on personality selection
         const selectedPersonality = personalities.find((p) => p.value === formData.personality);
-        const aiModel = selectedPersonality?.model ?? "claude-3-sonnet";
+        const aiModel = selectedPersonality?.model ?? "claude-sonnet-4-0";
 
         const result = await createInstance({
           name: formData.name,
@@ -67,11 +67,11 @@ export default function NewAgentPage() {
           aiModel,
         });
 
-        if (result !== null) {
+        if (result.success) {
           toast.success("Your agent is being created!");
           router.push("/dashboard");
         } else {
-          toast.error("Failed to create agent");
+          toast.error(result.error);
         }
       } catch {
         toast.error("Failed to create agent");

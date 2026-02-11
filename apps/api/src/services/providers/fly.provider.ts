@@ -86,30 +86,47 @@ export const flyProvider: InstanceProvider = {
   },
 
   async startInstance(data: ProviderInstanceData): Promise<void> {
-    if (!data.flyAppName || !data.flyMachineId) {
+    if (
+      data.flyAppName === null ||
+      data.flyAppName === undefined ||
+      data.flyMachineId === null ||
+      data.flyMachineId === undefined
+    ) {
       throw new Error("Missing Fly.io app name or machine ID");
     }
     await startMachine(data.flyAppName, data.flyMachineId);
   },
 
   async stopInstance(data: ProviderInstanceData): Promise<void> {
-    if (!data.flyAppName || !data.flyMachineId) {
+    if (
+      data.flyAppName === null ||
+      data.flyAppName === undefined ||
+      data.flyMachineId === null ||
+      data.flyMachineId === undefined
+    ) {
       throw new Error("Missing Fly.io app name or machine ID");
     }
     await stopMachine(data.flyAppName, data.flyMachineId);
   },
 
   async deleteInstance(data: ProviderInstanceData): Promise<void> {
-    if (!data.flyAppName) return;
+    if (data.flyAppName === null || data.flyAppName === undefined) {
+      return;
+    }
 
-    if (data.flyMachineId) {
+    if (data.flyMachineId !== null && data.flyMachineId !== undefined) {
       await deleteMachine(data.flyAppName, data.flyMachineId);
     }
     await deleteApp(data.flyAppName);
   },
 
   async getInstanceStatus(data: ProviderInstanceData): Promise<string> {
-    if (!data.flyAppName || !data.flyMachineId) {
+    if (
+      data.flyAppName === null ||
+      data.flyAppName === undefined ||
+      data.flyMachineId === null ||
+      data.flyMachineId === undefined
+    ) {
       return "UNKNOWN";
     }
     const machine = await getMachine(data.flyAppName, data.flyMachineId);

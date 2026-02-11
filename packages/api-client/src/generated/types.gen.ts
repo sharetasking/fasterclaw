@@ -698,6 +698,10 @@ export type PostBillingWebhookErrors = {
    * Bad request
    */
   400: ApiError;
+  /**
+   * Server configuration error
+   */
+  500: ApiError;
 };
 
 export type PostBillingWebhookError = PostBillingWebhookErrors[keyof PostBillingWebhookErrors];

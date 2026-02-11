@@ -20,12 +20,12 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
   const handleStart = () => {
     void (async () => {
       setLoading("start");
-      const success = await startInstance(agentId);
-      if (success) {
+      const result = await startInstance(agentId);
+      if (result.success) {
         toast.success("Agent started!");
         router.refresh();
       } else {
-        toast.error("Failed to start agent");
+        toast.error(result.error);
       }
       setLoading(null);
     })();
@@ -34,12 +34,12 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
   const handleStop = () => {
     void (async () => {
       setLoading("stop");
-      const success = await stopInstance(agentId);
-      if (success) {
+      const result = await stopInstance(agentId);
+      if (result.success) {
         toast.success("Agent paused");
         router.refresh();
       } else {
-        toast.error("Failed to pause agent");
+        toast.error(result.error);
       }
       setLoading(null);
     })();
@@ -51,12 +51,12 @@ export function AgentActions({ agentId, status }: AgentActionsProps) {
     }
     void (async () => {
       setLoading("delete");
-      const success = await deleteInstance(agentId);
-      if (success) {
+      const result = await deleteInstance(agentId);
+      if (result.success) {
         toast.success("Agent deleted");
         router.push("/dashboard");
       } else {
-        toast.error("Failed to delete agent");
+        toast.error(result.error);
       }
       setLoading(null);
     })();

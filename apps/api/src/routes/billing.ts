@@ -121,7 +121,11 @@ export function billingRoutes(fastify: FastifyInstance): void {
         select: { stripeCustomerId: true },
       });
 
-      if (!user?.stripeCustomerId) {
+      if (
+        user?.stripeCustomerId === null ||
+        user?.stripeCustomerId === undefined ||
+        user.stripeCustomerId === ""
+      ) {
         return reply.code(400).send({ error: "No billing account found. Please subscribe first." });
       }
 
@@ -253,6 +257,7 @@ export function billingRoutes(fastify: FastifyInstance): void {
         response: {
           200: WebhookResponseSchema,
           400: ApiErrorSchema,
+          500: ApiErrorSchema,
         },
       },
       config: {
@@ -262,7 +267,7 @@ export function billingRoutes(fastify: FastifyInstance): void {
     async (request, reply) => {
       const signature = request.headers["stripe-signature"] as string;
 
-      if (!signature) {
+      if (signature === "") {
         fastify.log.warn("Stripe webhook: Missing stripe-signature header");
         return reply.code(400).send({ error: "Missing stripe-signature header" });
       }
@@ -273,17 +278,20 @@ export function billingRoutes(fastify: FastifyInstance): void {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
         const rawBody = (request as any).rawBody as Buffer;
 
-        if (!rawBody) {
+        if (rawBody.length === 0) {
           fastify.log.error("Stripe webhook: rawBody not available - plugin may not be configured");
-          return reply.code(400).send({ error: "Raw body not available" });
+          return await reply.code(500).send({ error: "Raw body not available" });
         }
 
-        if (!process.env.STRIPE_WEBHOOK_SECRET) {
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (webhookSecret === undefined || webhookSecret === "") {
           fastify.log.error("Stripe webhook: STRIPE_WEBHOOK_SECRET not set");
-          return reply.code(400).send({ error: "Webhook secret not configured" });
+          return await reply.code(500).send({ error: "Webhook secret not configured" });
         }
 
-        fastify.log.info(`Stripe webhook: Verifying signature for ${rawBody.length} byte payload`);
+        fastify.log.info(
+          `Stripe webhook: Verifying signature for ${String(rawBody.length)} byte payload`
+        );
         event = verifyWebhookSignature(rawBody, signature);
         fastify.log.info(`Stripe webhook: Received event type: ${event.type}`);
       } catch (err: unknown) {

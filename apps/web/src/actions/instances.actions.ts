@@ -17,12 +17,28 @@ import { createAuthenticatedClient } from "@/lib/api-client";
 // NOTE: Types are NOT re-exported from Server Actions files.
 // Import types directly from @fasterclaw/api-client instead.
 
+/**
+ * Result type for actions that may fail.
+ */
+type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
+
+function getErrorMessage(error: unknown): string {
+  if (error !== null && typeof error === "object" && "error" in error) {
+    return String((error as { error: unknown }).error);
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "An unexpected error occurred";
+}
+
 export async function getInstances(): Promise<Instance[]> {
   try {
     const client = await createAuthenticatedClient();
-    const { data } = await getInstancesApi({ client });
+    const { data, error } = await getInstancesApi({ client });
 
-    if (!data) {
+    if (error !== undefined) {
+      console.error("Get instances error:", error);
       return [];
     }
 
@@ -36,12 +52,13 @@ export async function getInstances(): Promise<Instance[]> {
 export async function getInstance(id: string): Promise<Instance | null> {
   try {
     const client = await createAuthenticatedClient();
-    const { data } = await getInstancesById({
+    const { data, error } = await getInstancesById({
       client,
       path: { id },
     });
 
-    if (!data) {
+    if (error !== undefined) {
+      console.error("Get instance error:", error);
       return null;
     }
 
@@ -52,26 +69,28 @@ export async function getInstance(id: string): Promise<Instance | null> {
   }
 }
 
-export async function createInstance(input: CreateInstanceRequest): Promise<Instance | null> {
+export async function createInstance(
+  input: CreateInstanceRequest
+): Promise<ActionResult<Instance>> {
   try {
     const client = await createAuthenticatedClient();
-    const { data } = await postInstances({
+    const { data, error } = await postInstances({
       client,
       body: input,
     });
 
-    if (!data) {
-      return null;
+    if (error !== undefined) {
+      return { success: false, error: getErrorMessage(error) };
     }
 
-    return data;
+    return { success: true, data };
   } catch (error) {
     console.error("Create instance error:", error);
-    return null;
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
-export async function deleteInstance(id: string): Promise<boolean> {
+export async function deleteInstance(id: string): Promise<ActionResult<void>> {
   try {
     const client = await createAuthenticatedClient();
     const { error } = await deleteInstancesById({
@@ -79,40 +98,52 @@ export async function deleteInstance(id: string): Promise<boolean> {
       path: { id },
     });
 
-    return !error;
+    if (error !== undefined) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+
+    return { success: true, data: undefined };
   } catch (error) {
     console.error("Delete instance error:", error);
-    return false;
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
-export async function startInstance(id: string): Promise<boolean> {
+export async function startInstance(id: string): Promise<ActionResult<Instance>> {
   try {
     const client = await createAuthenticatedClient();
-    const { error } = await postInstancesByIdStart({
+    const { data, error } = await postInstancesByIdStart({
       client,
       path: { id },
     });
 
-    return !error;
+    if (error !== undefined) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+
+    return { success: true, data };
   } catch (error) {
     console.error("Start instance error:", error);
-    return false;
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
-export async function stopInstance(id: string): Promise<boolean> {
+export async function stopInstance(id: string): Promise<ActionResult<Instance>> {
   try {
     const client = await createAuthenticatedClient();
-    const { error } = await postInstancesByIdStop({
+    const { data, error } = await postInstancesByIdStop({
       client,
       path: { id },
     });
 
-    return !error;
+    if (error !== undefined) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+
+    return { success: true, data };
   } catch (error) {
     console.error("Stop instance error:", error);
-    return false;
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -126,7 +157,7 @@ export async function validateTelegramToken(
       body: { token: telegramToken },
     });
 
-    if (error || !data) {
+    if (error !== undefined) {
       return { valid: false, error: "Failed to validate token" };
     }
 

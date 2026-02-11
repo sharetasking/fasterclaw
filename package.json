@@ -7,6 +7,7 @@
     "dev": "turbo dev",
     "dev:tunnel": "turbo dev:tunnel",
     "build": "turbo build",
+    "generate": "pnpm --filter @fasterclaw/contracts build && pnpm --filter @fasterclaw/api-client build",
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",
     "typecheck": "turbo typecheck",

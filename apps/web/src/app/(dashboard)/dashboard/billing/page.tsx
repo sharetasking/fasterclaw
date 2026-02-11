@@ -5,9 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, CreditCard, Loader2, ExternalLink, Download } from "lucide-react";
-import { getSubscription, getInvoices, createCheckoutSession, createPortalSession } from "@/actions/billing.actions";
+import {
+  getSubscription,
+  getInvoices,
+  createCheckoutSession,
+  createPortalSession,
+} from "@/actions/billing.actions";
 import toast from "react-hot-toast";
-import type { Subscription, Invoice, PlanConfig, CreateCheckoutRequest } from "@fasterclaw/api-client";
+import type {
+  Subscription,
+  Invoice,
+  PlanConfig,
+  CreateCheckoutRequest,
+} from "@fasterclaw/api-client";
 
 type PlanId = CreateCheckoutRequest["plan"];
 
@@ -66,17 +76,23 @@ export default function BillingPage() {
 
   const fetchData = async () => {
     try {
-      const [subscriptionData, invoiceData] = await Promise.all([
+      const [subscriptionResult, invoiceResult] = await Promise.all([
         getSubscription(),
         getInvoices(),
       ]);
-      if (subscriptionData) {
-        setSubscription(subscriptionData.subscription);
-        if (subscriptionData.plans) {
-          setPlans(subscriptionData.plans as Record<PlanId, PlanConfig>);
-        }
+
+      if (subscriptionResult.success) {
+        setSubscription(subscriptionResult.data.subscription);
+        setPlans(subscriptionResult.data.plans as Record<PlanId, PlanConfig>);
+      } else {
+        toast.error(subscriptionResult.error);
       }
-      setInvoices(invoiceData);
+
+      if (invoiceResult.success) {
+        setInvoices(invoiceResult.data);
+      } else {
+        toast.error(invoiceResult.error);
+      }
     } catch (error) {
       console.error("Failed to fetch billing data:", error);
       toast.error("Failed to load billing information");
@@ -88,11 +104,11 @@ export default function BillingPage() {
   const handleManageBilling = async () => {
     setPortalLoading(true);
     try {
-      const url = await createPortalSession();
-      if (url) {
-        window.location.href = url;
+      const result = await createPortalSession();
+      if (result.success) {
+        window.location.href = result.data;
       } else {
-        toast.error("Failed to open billing portal");
+        toast.error(result.error);
         setPortalLoading(false);
       }
     } catch {
@@ -104,11 +120,11 @@ export default function BillingPage() {
   const handleSubscribe = async (planId: PlanId) => {
     setCheckoutLoading(planId);
     try {
-      const url = await createCheckoutSession(planId);
-      if (url) {
-        window.location.href = url;
+      const result = await createCheckoutSession(planId);
+      if (result.success) {
+        window.location.href = result.data;
       } else {
-        toast.error("Failed to start checkout");
+        toast.error(result.error);
         setCheckoutLoading(null);
       }
     } catch {
@@ -147,15 +163,13 @@ export default function BillingPage() {
                 <div>
                   <CardTitle>Current Plan</CardTitle>
                   <CardDescription>
-                    {subscription
-                      ? `You are on the ${subscription.plan ?? "Free"} plan`
+                    {subscription !== null
+                      ? `You are on the ${subscription.plan} plan`
                       : "You don't have an active subscription"}
                   </CardDescription>
                 </div>
                 {subscription && (
-                  <Badge
-                    variant={subscription.status === "ACTIVE" ? "default" : "secondary"}
-                  >
+                  <Badge variant={subscription.status === "ACTIVE" ? "default" : "secondary"}>
                     {subscription.status.toLowerCase()}
                   </Badge>
                 )}
@@ -166,9 +180,7 @@ export default function BillingPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Plan</span>
-                    <span className="font-medium capitalize">
-                      {subscription.plan ?? "Free"}
-                    </span>
+                    <span className="font-medium capitalize">{subscription.plan}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Instance Limit</span>
@@ -220,9 +232,7 @@ export default function BillingPage() {
           {/* Available Plans */}
           <Card>
             <CardHeader>
-              <CardTitle>
-                {subscription ? "Change Plan" : "Choose a Plan"}
-              </CardTitle>
+              <CardTitle>{subscription ? "Change Plan" : "Choose a Plan"}</CardTitle>
               <CardDescription>
                 {subscription
                   ? "Upgrade or downgrade your plan at any time"
@@ -244,7 +254,9 @@ export default function BillingPage() {
                     >
                       {isPopular && !isCurrent && (
                         <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                          <Badge variant="default" className="text-xs">Popular</Badge>
+                          <Badge variant="default" className="text-xs">
+                            Popular
+                          </Badge>
                         </div>
                       )}
                       <div className="mb-4">
@@ -256,10 +268,7 @@ export default function BillingPage() {
                       </div>
                       <ul className="space-y-2 mb-4">
                         {plan.features.map((feature) => (
-                          <li
-                            key={feature}
-                            className="flex items-start gap-2 text-sm"
-                          >
+                          <li key={feature} className="flex items-start gap-2 text-sm">
                             <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                             <span>{feature}</span>
                           </li>
@@ -274,9 +283,7 @@ export default function BillingPage() {
                           onClick={() => void handleManageBilling()}
                           disabled={portalLoading}
                         >
-                          {portalLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
+                          {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                           Change Plan
                         </Button>
                       ) : (
@@ -286,9 +293,7 @@ export default function BillingPage() {
                           onClick={() => void handleSubscribe(planId)}
                           disabled={isLoading || checkoutLoading !== null}
                         >
-                          {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                           Subscribe
                         </Button>
                       )}
@@ -323,14 +328,14 @@ export default function BillingPage() {
                         <Badge variant={invoice.status === "paid" ? "default" : "secondary"}>
                           {invoice.status}
                         </Badge>
-                        {invoice.invoiceUrl && (
+                        {invoice.invoiceUrl !== null && (
                           <a href={invoice.invoiceUrl} target="_blank" rel="noopener noreferrer">
                             <Button variant="ghost" size="icon">
                               <ExternalLink className="h-4 w-4" />
                             </Button>
                           </a>
                         )}
-                        {invoice.invoicePdf && (
+                        {invoice.invoicePdf !== null && (
                           <a href={invoice.invoicePdf} target="_blank" rel="noopener noreferrer">
                             <Button variant="ghost" size="icon">
                               <Download className="h-4 w-4" />
@@ -361,14 +366,14 @@ export default function BillingPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Instance Limit</span>
                 <span className="font-medium">
-                  {subscription?.instanceLimit === -1 ? "Unlimited" : `${subscription?.instanceLimit ?? 0} instances`}
+                  {subscription?.instanceLimit === -1
+                    ? "Unlimited"
+                    : `${String(subscription?.instanceLimit ?? 0)} instances`}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Plan</span>
-                <span className="font-medium capitalize">
-                  {subscription?.plan ?? "None"}
-                </span>
+                <span className="font-medium capitalize">{subscription?.plan ?? "None"}</span>
               </div>
             </CardContent>
           </Card>

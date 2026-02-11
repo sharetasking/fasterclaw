@@ -1,15 +1,19 @@
 # FasterClaw Implementation Status
 
-## ✅ What's Implemented (Approx. 70-75% Complete)
+## ✅ What's Implemented (Approx. 90% Complete)
 
 ### Infrastructure & Setup
-- ✅ Monorepo structure (apps/web, apps/api, packages/db)
+
+- ✅ Monorepo structure (apps/web, apps/api, packages/db, packages/shared, packages/contracts, packages/api-client)
 - ✅ Turbo build system configured
-- ✅ Database schema (User, Instance, Subscription) - matches plan exactly
-- ✅ Prisma client setup
+- ✅ Contract-first API architecture (Zod schemas → OpenAPI → Generated client)
+- ✅ Database schema (User, Instance, Subscription)
+- ✅ Prisma client with encryption extension
 - ✅ TypeScript configuration
+- ✅ ESLint configuration
 
 ### Backend (API)
+
 - ✅ Fastify app factory with plugins
 - ✅ JWT authentication plugin
 - ✅ CORS plugin
@@ -18,202 +22,120 @@
   - ✅ POST /auth/register
   - ✅ POST /auth/login
   - ✅ GET /auth/me
+  - ✅ PATCH /auth/profile
+  - ✅ PATCH /auth/password
+  - ✅ DELETE /auth/account
 - ✅ Billing routes:
   - ✅ POST /billing/checkout
+  - ✅ POST /billing/portal
   - ✅ GET /billing/subscription
+  - ✅ GET /billing/invoices
   - ✅ POST /billing/webhook (handles all Stripe events)
 - ✅ Instance routes:
   - ✅ POST /instances (create)
   - ✅ GET /instances (list)
   - ✅ GET /instances/:id (get)
+  - ✅ PATCH /instances/:id (update)
   - ✅ POST /instances/:id/start
   - ✅ POST /instances/:id/stop
   - ✅ DELETE /instances/:id
-- ✅ Fly.io service:
-  - ✅ createApp()
-  - ✅ createMachine()
-  - ✅ startMachine()
-  - ✅ stopMachine()
-  - ✅ deleteMachine()
-  - ✅ deleteApp()
-  - ✅ getMachine()
-  - ✅ listMachines()
-- ✅ Stripe service:
-  - ✅ getOrCreateStripeCustomer()
-  - ✅ verifyWebhookSignature()
+  - ✅ POST /instances/validate-telegram-token
+- ✅ Provider abstraction (Fly.io and Docker support)
+- ✅ Fly.io service (full machine lifecycle)
+- ✅ Docker provider (local development)
+- ✅ Stripe service with webhook handling
 - ✅ Health check route
 
+### Security
+
+- ✅ Telegram bot token encryption (AES-256-GCM with scrypt key derivation)
+- ✅ Prisma encryption middleware for automatic encrypt/decrypt
+- ✅ Secure shell execution (execFile instead of exec)
+- ✅ Cryptographic token generation (crypto.randomBytes)
+- ✅ Subscription gating with instance limits
+
 ### Frontend (Web)
+
 - ✅ Next.js 16 App Router setup
 - ✅ Tailwind CSS + shadcn/ui components
 - ✅ Auth middleware
 - ✅ Landing page (hero, features, pricing, CTA)
-- ✅ Auth pages:
-  - ✅ Sign-in page
-  - ✅ Create account page
+- ✅ Auth pages (sign-in, create account)
 - ✅ Pricing page
 - ✅ Dashboard layout with sidebar
-- ✅ Dashboard page (instance list UI)
-- ✅ Instance detail page (UI)
-- ✅ New instance page (form UI)
-- ✅ Billing page
-- ✅ Settings page (structure)
-- ✅ Server actions for instances
+- ✅ Dashboard page (instance list with real data)
+- ✅ Instance detail page (connected to API)
+- ✅ New instance page (Telegram token input, model selection)
+- ✅ New agent page (simplified instance creation)
+- ✅ Billing page (subscription status, plans, invoices)
+- ✅ Settings page
+- ✅ Server actions for all API operations
 - ✅ Providers setup (theme, toast)
 
 ---
 
-## ❌ What's Missing (Critical Gaps)
+## ⚠️ Known Issues & Pending Work
 
-### 1. Telegram Bot Token Integration (HIGH PRIORITY)
-- ❌ **Telegram token input field** in instance creation form (`apps/web/src/app/(dashboard)/dashboard/instances/new/page.tsx`)
-- ❌ **Telegram token validation endpoint** (`POST /instances/validate-telegram-token`)
-- ❌ **Telegram token passed to Fly.io machine** - not included in `createMachine()` config
-- ❌ **Telegram token stored** - field exists in DB but not saved during creation
+### Linting
 
-**Current State:**
-- Schema has `telegramBotToken` field but it's never set
-- Instance creation doesn't accept or validate token
-- Fly.io machine config doesn't include `TELEGRAM_BOT_TOKEN` env var
+- Pre-existing ESLint strict mode warnings in API routes
+- Most are style preferences (strict-boolean-expressions, template-expressions)
+- Typecheck passes cleanly
 
-### 2. Subscription Gating (HIGH PRIORITY)
-- ❌ **Check subscription before instance creation** - no validation in `POST /instances`
-- ❌ **Enforce instance limits** - `instanceLimit` from subscription not checked
-- ❌ **Subscription status check** - should verify `status === 'ACTIVE'`
+### Optional Enhancements
 
-**Current State:**
-- Users can create instances without active subscription
-- No limit enforcement based on plan tier
-
-### 3. Fly.io Machine Configuration (HIGH PRIORITY)
-- ❌ **ANTHROPIC_API_KEY injection** - not passed to machine env vars
-- ❌ **AI model selection** - `aiModel` not passed to machine config
-- ❌ **Telegram token** - not passed as `TELEGRAM_BOT_TOKEN` env var
-- ❌ **OpenClaw-specific env vars** - missing required configuration
-
-**Current State:**
-- Machine created with minimal config (just image and ports)
-- Missing all environment variables needed by OpenClaw
-
-### 4. Frontend-Backend Integration (MEDIUM PRIORITY)
-- ❌ **Dashboard uses mock data** - not fetching real instances
-- ❌ **Instance detail page uses mock data** - not connected to API
-- ❌ **New instance form** - doesn't submit to real API (has TODO comment)
-- ❌ **Instance actions** - start/stop/delete buttons not wired up
-- ❌ **Real-time status updates** - no polling or websockets
-
-**Current State:**
-- Server actions exist but pages use hardcoded data
-- Forms have placeholder implementations
-
-### 5. Health Check & Status Sync (MEDIUM PRIORITY)
-- ❌ **Periodic status sync job** - no background worker to sync Fly.io status
-- ❌ **Status polling endpoint** - no way to refresh instance status
-- ❌ **Automatic status updates** - instances stuck in CREATING/RUNNING without verification
-
-**Current State:**
-- Status set once during creation, never updated
-- No way to detect if machine actually stopped/failed
-
-### 6. Error Handling & Retry Logic (MEDIUM PRIORITY)
-- ❌ **Retry logic for Fly.io operations** - failures are permanent
-- ❌ **Better error messages** - generic "Failed to create instance"
-- ❌ **Provisioning state management** - no intermediate states (CREATING → PROVISIONING → RUNNING)
-
-**Current State:**
-- Basic try/catch but no retries
-- Errors logged but not actionable
-
-### 7. Additional Features (LOW PRIORITY)
-- ❌ **Billing portal integration** - Stripe customer portal link
-- ❌ **Settings page implementation** - account management
-- ❌ **Instance logs link** - no way to view Fly.io logs
-- ❌ **Restart instance endpoint** - only start/stop exist
-- ❌ **Update instance** - no PATCH endpoint for name/model changes
+- Instance logs link (Fly.io logs integration)
+- Real-time status updates (WebSocket or polling)
+- Instance restart endpoint
+- Background status sync job
 
 ---
 
-## 🔧 Required Fixes to Complete MVP
+## 📊 Completion Status
 
-### Priority 1: Core Functionality
-1. **Add Telegram token to instance creation**
-   - Add input field to form
-   - Add to API schema
-   - Validate token (call Telegram API)
-   - Pass to Fly.io as env var
+**Overall: ~90% Complete**
 
-2. **Add subscription gating**
-   - Check subscription status in `POST /instances`
-   - Count existing instances vs `instanceLimit`
-   - Return clear error if limit exceeded
-
-3. **Fix Fly.io machine config**
-   - Add `TELEGRAM_BOT_TOKEN` env var
-   - Add `ANTHROPIC_API_KEY` env var
-   - Add `AI_MODEL` env var
-   - Verify OpenClaw image works
-
-### Priority 2: Integration
-4. **Connect frontend to backend**
-   - Replace mock data with real API calls
-   - Wire up instance actions (start/stop/delete)
-   - Add loading states and error handling
-
-5. **Add status sync**
-   - Create background job or endpoint to sync Fly.io status
-   - Poll instance status periodically
-   - Update DB when status changes
-
-### Priority 3: Polish
-6. **Error handling improvements**
-   - Add retry logic for Fly.io operations
-   - Better error messages
-   - Provisioning state management
-
-7. **Additional features**
-   - Billing portal
-   - Settings page
-   - Instance logs
+| Component            | Status  | Notes                           |
+| -------------------- | ------- | ------------------------------- |
+| Backend Core         | 95% ✅  | All routes implemented          |
+| Frontend Core        | 90% ✅  | All pages connected             |
+| API Integration      | 95% ✅  | Server actions complete         |
+| Telegram Integration | 100% ✅ | Token validation and encryption |
+| Subscription Gating  | 100% ✅ | Limits enforced                 |
+| Provider Abstraction | 100% ✅ | Fly.io + Docker                 |
+| Security             | 95% ✅  | Encryption, secure shell        |
+| Error Handling       | 80% ⚠️  | Basic error handling in place   |
 
 ---
 
-## 📊 Completion Estimate
+## 🔄 Recent Changes (PR Review Fixes)
 
-**Overall: ~70-75% Complete**
+### Security Fixes
 
-- **Backend Core**: 85% ✅
-- **Frontend Core**: 80% ✅
-- **Integration**: 40% ❌
-- **Telegram Integration**: 10% ❌
-- **Subscription Gating**: 20% ❌
-- **Fly.io Config**: 50% ⚠️
-- **Error Handling**: 60% ⚠️
+1. **Shell injection prevention**: Changed `exec` to `execFile` in docker.provider.ts
+2. **Cryptographic tokens**: Replaced `Math.random()` with `crypto.randomBytes()`
+3. **Scrypt key caching**: Cached derived encryption key for performance
+4. **Encryption bypass fix**: Added handling for Prisma nested `set` operations
 
-**Estimated Time to MVP**: 2-3 days of focused work
+### Bug Fixes
+
+1. **Provider resolution**: Fixed lifecycle operations to use correct provider
+2. **Billing webhook errors**: Changed 400 to 500 for server configuration errors
+3. **ActionResult pattern**: Standardized error handling in server actions
+4. **Model name consistency**: Unified model names across frontend and backend
+
+### Code Quality
+
+1. **Fixed invalid dotenv version**: Changed from ^17.2.4 to ^16.4.7
+2. **Removed local settings file**: Cleaned up .claude/settings.local.json
+3. **Type safety improvements**: Fixed TypeScript errors in encryption middleware
+4. **ESLint compliance**: Fixed lint errors in encryption modules
 
 ---
 
-## 🎯 Next Steps (Recommended Order)
+## 🎯 Remaining Tasks
 
-1. **Day 1 Morning**: Telegram token integration
-   - Add token input to form
-   - Add validation endpoint
-   - Pass token to Fly.io
-
-2. **Day 1 Afternoon**: Subscription gating
-   - Add checks to instance creation
-   - Enforce limits
-
-3. **Day 2 Morning**: Fix Fly.io config
-   - Add all required env vars
-   - Test OpenClaw deployment
-
-4. **Day 2 Afternoon**: Frontend integration
-   - Connect real API calls
-   - Wire up actions
-
-5. **Day 3**: Status sync & polish
-   - Add status polling
-   - Error handling
-   - Testing
-
+1. Address remaining ESLint warnings in API routes (optional)
+2. Add instance logs integration
+3. Implement real-time status updates
+4. Add comprehensive error retry logic

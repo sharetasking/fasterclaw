@@ -4,27 +4,41 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
+// Cache for the derived encryption key to avoid repeated scrypt calls
+let cachedKey: Buffer | null = null;
+let cachedKeySource: string | null = null;
+
 /**
  * Get the encryption key from environment variable.
  * The key is derived using scrypt for additional security.
+ * The derived key is cached for performance.
  */
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
-  if (!key) {
+  if (key === undefined || key === "") {
     throw new Error(
       "ENCRYPTION_KEY environment variable is required. " +
         "Generate one with: openssl rand -hex 32"
     );
   }
-  // Derive a 32-byte key using scrypt
-  return scryptSync(key, "fasterclaw-salt", 32);
+
+  // Return cached key if the source key hasn't changed
+  if (cachedKey !== null && cachedKeySource === key) {
+    return cachedKey;
+  }
+
+  // Derive a 32-byte key using scrypt and cache it
+  cachedKey = scryptSync(key, "fasterclaw-salt", 32);
+  cachedKeySource = key;
+  return cachedKey;
 }
 
 /**
  * Check if encryption is enabled (ENCRYPTION_KEY is set).
  */
 export function isEncryptionEnabled(): boolean {
-  return !!process.env.ENCRYPTION_KEY;
+  const key = process.env.ENCRYPTION_KEY;
+  return key !== undefined && key !== "";
 }
 
 /**
@@ -48,10 +62,7 @@ export function encrypt(plaintext: string): string {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
 
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
   return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
@@ -104,10 +115,7 @@ export function decrypt(ciphertext: string): string {
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
     return decrypted.toString("utf8");
   } catch {
@@ -137,7 +145,11 @@ function isValidHex(str: string): boolean {
  * ```
  */
 export function maskToken(token: string | null): string | null {
-  if (!token) return null;
-  if (token.length <= 14) return "***";
+  if (token === null || token === "") {
+    return null;
+  }
+  if (token.length <= 14) {
+    return "***";
+  }
   return `${token.slice(0, 10)}...${token.slice(-4)}`;
 }

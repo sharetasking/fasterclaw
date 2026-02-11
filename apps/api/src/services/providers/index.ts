@@ -18,8 +18,23 @@ export type ProviderType = "fly" | "docker";
  * Defaults to "fly" for production use.
  */
 export function getProvider(): InstanceProvider {
-  const providerType = (process.env.INSTANCE_PROVIDER || "fly") as ProviderType;
+  const envProvider = process.env.INSTANCE_PROVIDER;
+  const providerType: ProviderType = envProvider === "docker" ? "docker" : "fly";
 
+  switch (providerType) {
+    case "docker":
+      return dockerProvider;
+    case "fly":
+    default:
+      return flyProvider;
+  }
+}
+
+/**
+ * Get the provider for a specific provider type.
+ * Use this for lifecycle operations on existing instances.
+ */
+export function getProviderByType(providerType: ProviderType): InstanceProvider {
   switch (providerType) {
     case "docker":
       return dockerProvider;
@@ -33,7 +48,8 @@ export function getProvider(): InstanceProvider {
  * Get the current provider type name.
  */
 export function getProviderType(): ProviderType {
-  return (process.env.INSTANCE_PROVIDER || "fly") as ProviderType;
+  const envProvider = process.env.INSTANCE_PROVIDER;
+  return envProvider === "docker" ? "docker" : "fly";
 }
 
 // Re-export types and individual providers

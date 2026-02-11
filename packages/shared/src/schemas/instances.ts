@@ -54,7 +54,7 @@ export const CreateInstanceRequestSchema = z
     name: z.string().min(1, "Name is required").max(50, "Name must be 50 characters or less"),
     telegramBotToken: z.string().min(1, "Telegram bot token is required"),
     region: z.string().default("lax"),
-    aiModel: z.string().default("claude-sonnet-4"),
+    aiModel: z.string().default("claude-sonnet-4-0"),
   })
   .openapi("CreateInstanceRequest");
 

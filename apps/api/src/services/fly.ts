@@ -20,7 +20,7 @@ export class FlyApiError extends Error {
     public readonly detail: string,
     public readonly operation: string
   ) {
-    super(`Fly.io ${operation} failed (${status}): ${detail}`);
+    super(`Fly.io ${operation} failed (${String(status)}): ${detail}`);
     this.name = "FlyApiError";
   }
 
@@ -93,12 +93,7 @@ async function flyRequest(
 
       if (!response.ok) {
         const detail = await response.text();
-        const error = new FlyApiError(
-          response.status,
-          response.statusText,
-          detail,
-          operation
-        );
+        const error = new FlyApiError(response.status, response.statusText, detail, operation);
 
         // Only retry on transient/server errors
         if (error.isRetryable && attempt < MAX_RETRIES) {
@@ -143,7 +138,7 @@ async function flyRequest(
     }
   }
 
-  throw lastError ?? new Error(`Fly.io ${operation} failed after ${MAX_RETRIES} retries`);
+  throw lastError ?? new Error(`Fly.io ${operation} failed after ${String(MAX_RETRIES)} retries`);
 }
 
 /**
@@ -166,10 +161,7 @@ export async function createApp(name: string): Promise<void> {
 /**
  * Create a new machine in a Fly app
  */
-export async function createMachine(
-  appName: string,
-  config: MachineConfig
-): Promise<Machine> {
+export async function createMachine(appName: string, config: MachineConfig): Promise<Machine> {
   const response = await flyRequest(
     `/apps/${appName}/machines`,
     {
@@ -189,10 +181,7 @@ export async function createMachine(
 /**
  * Start a stopped machine
  */
-export async function startMachine(
-  appName: string,
-  machineId: string
-): Promise<void> {
+export async function startMachine(appName: string, machineId: string): Promise<void> {
   await flyRequest(
     `/apps/${appName}/machines/${machineId}/start`,
     { method: "POST" },
@@ -203,10 +192,7 @@ export async function startMachine(
 /**
  * Stop a running machine
  */
-export async function stopMachine(
-  appName: string,
-  machineId: string
-): Promise<void> {
+export async function stopMachine(appName: string, machineId: string): Promise<void> {
   await flyRequest(
     `/apps/${appName}/machines/${machineId}/stop`,
     { method: "POST" },
@@ -217,49 +203,27 @@ export async function stopMachine(
 /**
  * Delete a machine
  */
-export async function deleteMachine(
-  appName: string,
-  machineId: string
-): Promise<void> {
-  await flyRequest(
-    `/apps/${appName}/machines/${machineId}`,
-    { method: "DELETE" },
-    "deleteMachine"
-  );
+export async function deleteMachine(appName: string, machineId: string): Promise<void> {
+  await flyRequest(`/apps/${appName}/machines/${machineId}`, { method: "DELETE" }, "deleteMachine");
 }
 
 /**
  * Delete a Fly app
  */
 export async function deleteApp(appName: string): Promise<void> {
-  await flyRequest(
-    `/apps/${appName}`,
-    { method: "DELETE" },
-    "deleteApp"
-  );
+  await flyRequest(`/apps/${appName}`, { method: "DELETE" }, "deleteApp");
 }
 
 /**
  * Get machine status
  */
-export async function getMachine(
-  appName: string,
-  machineId: string
-): Promise<Machine> {
-  return flyRequest(
-    `/apps/${appName}/machines/${machineId}`,
-    {},
-    "getMachine"
-  ) as Promise<Machine>;
+export async function getMachine(appName: string, machineId: string): Promise<Machine> {
+  return flyRequest(`/apps/${appName}/machines/${machineId}`, {}, "getMachine") as Promise<Machine>;
 }
 
 /**
  * List all machines in an app
  */
 export async function listMachines(appName: string): Promise<Machine[]> {
-  return flyRequest(
-    `/apps/${appName}/machines`,
-    {},
-    "listMachines"
-  ) as Promise<Machine[]>;
+  return flyRequest(`/apps/${appName}/machines`, {}, "listMachines") as Promise<Machine[]>;
 }

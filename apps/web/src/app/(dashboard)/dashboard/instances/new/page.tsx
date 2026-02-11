@@ -19,9 +19,9 @@ const regions = [
 ];
 
 const models = [
-  { value: "claude-sonnet-4", label: "Claude Sonnet 4", description: "Balanced performance" },
-  { value: "claude-opus-4", label: "Claude Opus 4", description: "Most capable model" },
-  { value: "claude-haiku-4", label: "Claude Haiku 4", description: "Fastest responses" },
+  { value: "claude-sonnet-4-0", label: "Claude Sonnet 4", description: "Balanced performance" },
+  { value: "claude-opus-4-0", label: "Claude Opus 4", description: "Most capable model" },
+  { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku", description: "Fastest responses" },
 ];
 
 interface TokenValidation {
@@ -37,7 +37,7 @@ export default function NewInstancePage() {
   const [formData, setFormData] = useState({
     name: "",
     region: "iad",
-    aiModel: "claude-sonnet-4",
+    aiModel: "claude-sonnet-4-0",
     telegramBotToken: "",
   });
   const [tokenValidation, setTokenValidation] = useState<TokenValidation>({
@@ -46,7 +46,7 @@ export default function NewInstancePage() {
 
   // Debounced token validation
   const validateToken = useCallback(async (token: string) => {
-    if (!token || token.length < 10) {
+    if (token === "" || token.length < 10) {
       setTokenValidation({ status: "idle" });
       return;
     }
@@ -64,7 +64,7 @@ export default function NewInstancePage() {
       } else {
         setTokenValidation({
           status: "invalid",
-          error: result.error || "Invalid token",
+          error: result.error ?? "Invalid token",
         });
       }
     } catch {
@@ -78,16 +78,18 @@ export default function NewInstancePage() {
   // Debounce effect for token validation
   useEffect(() => {
     const timer = setTimeout(() => {
-      validateToken(formData.telegramBotToken);
+      void validateToken(formData.telegramBotToken);
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [formData.telegramBotToken, validateToken]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!formData.telegramBotToken.trim()) {
+    if (formData.telegramBotToken.trim() === "") {
       toast.error("Telegram bot token is required");
       return;
     }
@@ -99,25 +101,27 @@ export default function NewInstancePage() {
 
     setLoading(true);
 
-    try {
-      const result = await createInstance({
-        name: formData.name,
-        region: formData.region,
-        aiModel: formData.aiModel,
-        telegramBotToken: formData.telegramBotToken,
-      });
+    void (async () => {
+      try {
+        const result = await createInstance({
+          name: formData.name,
+          region: formData.region,
+          aiModel: formData.aiModel,
+          telegramBotToken: formData.telegramBotToken,
+        });
 
-      if (result) {
-        toast.success("Instance created successfully!");
-        router.push("/dashboard");
-      } else {
+        if (result.success) {
+          toast.success("Instance created successfully!");
+          router.push("/dashboard");
+        } else {
+          toast.error(result.error);
+        }
+      } catch {
         toast.error("Failed to create instance");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      toast.error("Failed to create instance");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   return (
@@ -143,9 +147,7 @@ export default function NewInstancePage() {
               <Server className="h-5 w-5" />
               Instance Configuration
             </CardTitle>
-            <CardDescription>
-              Configure your Claude AI instance settings
-            </CardDescription>
+            <CardDescription>Configure your Claude AI instance settings</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -156,7 +158,9 @@ export default function NewInstancePage() {
                   id="name"
                   placeholder="e.g., Production API"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                  }}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
@@ -173,13 +177,15 @@ export default function NewInstancePage() {
                     type="password"
                     placeholder="e.g., 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
                     value={formData.telegramBotToken}
-                    onChange={(e) => setFormData({ ...formData, telegramBotToken: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, telegramBotToken: e.target.value });
+                    }}
                     className={
                       tokenValidation.status === "valid"
                         ? "border-green-500 pr-10"
                         : tokenValidation.status === "invalid"
-                        ? "border-red-500 pr-10"
-                        : "pr-10"
+                          ? "border-red-500 pr-10"
+                          : "pr-10"
                     }
                     required
                   />
@@ -195,25 +201,27 @@ export default function NewInstancePage() {
                     )}
                   </div>
                 </div>
-                {tokenValidation.status === "valid" && tokenValidation.botUsername && (
-                  <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-700 dark:text-green-300">
-                      Connected to <strong>@{tokenValidation.botUsername}</strong>
-                      {tokenValidation.botName && ` (${tokenValidation.botName})`}
-                    </span>
-                  </div>
-                )}
+                {tokenValidation.status === "valid" &&
+                  tokenValidation.botUsername !== undefined && (
+                    <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-700 dark:text-green-300">
+                        Connected to <strong>@{tokenValidation.botUsername}</strong>
+                        {tokenValidation.botName !== undefined && ` (${tokenValidation.botName})`}
+                      </span>
+                    </div>
+                  )}
                 {tokenValidation.status === "invalid" && (
                   <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
                     <XCircle className="h-4 w-4 text-red-600" />
                     <span className="text-sm text-red-700 dark:text-red-300">
-                      {tokenValidation.error || "Invalid bot token"}
+                      {tokenValidation.error ?? "Invalid bot token"}
                     </span>
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Get this from @BotFather on Telegram. This token will be passed securely to your instance.
+                  Get this from @BotFather on Telegram. This token will be passed securely to your
+                  instance.
                 </p>
               </div>
 
@@ -224,7 +232,9 @@ export default function NewInstancePage() {
                   id="region"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={formData.region}
-                  onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, region: e.target.value });
+                  }}
                 >
                   {regions.map((region) => (
                     <option key={region.value} value={region.value}>
@@ -251,14 +261,14 @@ export default function NewInstancePage() {
                         name="model"
                         value={model.value}
                         checked={formData.aiModel === model.value}
-                        onChange={(e) => setFormData({ ...formData, aiModel: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, aiModel: e.target.value });
+                        }}
                         className="mt-1"
                       />
                       <div>
                         <div className="font-medium">{model.label}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {model.description}
-                        </div>
+                        <div className="text-sm text-muted-foreground">{model.description}</div>
                       </div>
                     </label>
                   ))}

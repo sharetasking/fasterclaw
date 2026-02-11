@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Server, Activity, Power, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Server, Activity, Power, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   getInstance,
@@ -42,63 +42,77 @@ export default function InstanceDetailPage() {
 
   const fetchInstance = useCallback(async () => {
     const data = await getInstance(id);
-    if (data) {
+    if (data !== null) {
       setInstance(data);
     }
     setLoading(false);
   }, [id]);
 
   useEffect(() => {
-    fetchInstance();
+    void fetchInstance();
   }, [fetchInstance]);
 
   // Poll for status updates when instance is in a transitional state
   useEffect(() => {
-    if (!instance) return;
+    if (instance === null) {
+      return undefined;
+    }
     const transitional = ["CREATING", "PROVISIONING", "STARTING", "STOPPING"];
-    if (!transitional.includes(instance.status.toUpperCase())) return;
+    if (!transitional.includes(instance.status.toUpperCase())) {
+      return undefined;
+    }
 
-    const interval = setInterval(fetchInstance, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      void fetchInstance();
+    }, 5000);
+    return () => {
+      clearInterval(interval);
+    };
   }, [instance, fetchInstance]);
 
-  const handleStart = async () => {
+  const handleStart = () => {
     setActionLoading("start");
-    const ok = await startInstance(id);
-    if (ok) {
-      toast.success("Instance starting...");
-      await fetchInstance();
-    } else {
-      toast.error("Failed to start instance");
-    }
-    setActionLoading(null);
+    void (async () => {
+      const result = await startInstance(id);
+      if (result.success) {
+        toast.success("Instance starting...");
+        await fetchInstance();
+      } else {
+        toast.error(result.error);
+      }
+      setActionLoading(null);
+    })();
   };
 
-  const handleStop = async () => {
+  const handleStop = () => {
     setActionLoading("stop");
-    const ok = await stopInstance(id);
-    if (ok) {
-      toast.success("Instance stopped");
-      await fetchInstance();
-    } else {
-      toast.error("Failed to stop instance");
-    }
-    setActionLoading(null);
+    void (async () => {
+      const result = await stopInstance(id);
+      if (result.success) {
+        toast.success("Instance stopped");
+        await fetchInstance();
+      } else {
+        toast.error(result.error);
+      }
+      setActionLoading(null);
+    })();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!confirm("Are you sure you want to delete this instance? This action cannot be undone.")) {
       return;
     }
     setActionLoading("delete");
-    const ok = await deleteInstance(id);
-    if (ok) {
-      toast.success("Instance deleted");
-      router.push("/dashboard");
-    } else {
-      toast.error("Failed to delete instance");
-      setActionLoading(null);
-    }
+    void (async () => {
+      const result = await deleteInstance(id);
+      if (result.success) {
+        toast.success("Instance deleted");
+        router.push("/dashboard");
+      } else {
+        toast.error(result.error);
+        setActionLoading(null);
+      }
+    })();
   };
 
   if (loading) {
@@ -109,7 +123,7 @@ export default function InstanceDetailPage() {
     );
   }
 
-  if (!instance) {
+  if (instance === null) {
     return (
       <div className="p-8">
         <Link href="/dashboard">
@@ -121,9 +135,7 @@ export default function InstanceDetailPage() {
         <div className="text-center py-12">
           <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Instance not found</h3>
-          <p className="text-muted-foreground">
-            This instance may have been deleted.
-          </p>
+          <p className="text-muted-foreground">This instance may have been deleted.</p>
         </div>
       </div>
     );
@@ -203,20 +215,16 @@ export default function InstanceDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>Instance Information</CardTitle>
-              <CardDescription>
-                Configuration details for this instance
-              </CardDescription>
+              <CardDescription>Configuration details for this instance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {instance.flyAppName && (
+              {instance.flyAppName !== null && (
                 <div>
                   <div className="text-sm font-medium mb-1">Fly App Name</div>
-                  <code className="text-sm bg-muted px-2 py-1 rounded">
-                    {instance.flyAppName}
-                  </code>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{instance.flyAppName}</code>
                 </div>
               )}
-              {instance.flyMachineId && (
+              {instance.flyMachineId !== null && (
                 <div>
                   <div className="text-sm font-medium mb-1">Machine ID</div>
                   <code className="text-sm bg-muted px-2 py-1 rounded">
@@ -224,12 +232,10 @@ export default function InstanceDetailPage() {
                   </code>
                 </div>
               )}
-              {instance.ipAddress && (
+              {instance.ipAddress !== null && (
                 <div>
                   <div className="text-sm font-medium mb-1">IP Address</div>
-                  <code className="text-sm bg-muted px-2 py-1 rounded">
-                    {instance.ipAddress}
-                  </code>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{instance.ipAddress}</code>
                 </div>
               )}
             </CardContent>
@@ -244,9 +250,7 @@ export default function InstanceDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold capitalize">{instance.status.toLowerCase()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Current state
-                </p>
+                <p className="text-xs text-muted-foreground">Current state</p>
               </CardContent>
             </Card>
 
@@ -257,9 +261,7 @@ export default function InstanceDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{instance.region}</div>
-                <p className="text-xs text-muted-foreground">
-                  Deployment region
-                </p>
+                <p className="text-xs text-muted-foreground">Deployment region</p>
               </CardContent>
             </Card>
           </div>

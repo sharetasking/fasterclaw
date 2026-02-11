@@ -4,8 +4,9 @@
  * No additional npm packages required - uses child_process to run docker commands.
  */
 
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
+import { randomBytes } from "crypto";
 import type {
   InstanceProvider,
   CreateInstanceConfig,
@@ -13,20 +14,20 @@ import type {
   ProviderInstanceData,
 } from "./types.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const OPENCLAW_IMAGE = "ghcr.io/openclaw/openclaw:latest";
 
 /**
- * Execute a docker command and return stdout.
+ * Execute a docker command with arguments (safe from shell injection).
  */
-async function dockerExec(command: string): Promise<string> {
+async function dockerExec(args: string[]): Promise<string> {
   try {
-    const { stdout } = await execAsync(`docker ${command}`);
+    const { stdout } = await execFileAsync("docker", args);
     return stdout.trim();
   } catch (error) {
     const err = error as { stderr?: string; message?: string };
-    throw new Error(`Docker command failed: ${err.stderr || err.message}`);
+    throw new Error(`Docker command failed: ${err.stderr ?? err.message ?? "Unknown error"}`);
   }
 }
 
@@ -35,11 +36,9 @@ async function dockerExec(command: string): Promise<string> {
  */
 async function checkDockerAvailable(): Promise<void> {
   try {
-    await dockerExec("version --format '{{.Server.Version}}'");
+    await dockerExec(["version", "--format", "{{.Server.Version}}"]);
   } catch {
-    throw new Error(
-      "Docker is not available. Please ensure Docker Desktop is running."
-    );
+    throw new Error("Docker is not available. Please ensure Docker Desktop is running.");
   }
 }
 
@@ -48,11 +47,11 @@ async function checkDockerAvailable(): Promise<void> {
  */
 async function ensureImageExists(): Promise<void> {
   try {
-    await dockerExec(`image inspect ${OPENCLAW_IMAGE}`);
+    await dockerExec(["image", "inspect", OPENCLAW_IMAGE]);
   } catch {
     // Image doesn't exist, pull it
     console.log(`Pulling ${OPENCLAW_IMAGE}...`);
-    await dockerExec(`pull ${OPENCLAW_IMAGE}`);
+    await dockerExec(["pull", OPENCLAW_IMAGE]);
   }
 }
 
@@ -61,9 +60,7 @@ async function ensureImageExists(): Promise<void> {
  */
 async function getContainerState(containerId: string): Promise<string> {
   try {
-    const result = await dockerExec(
-      `inspect --format "{{.State.Status}}" ${containerId}`
-    );
+    const result = await dockerExec(["inspect", "--format", "{{.State.Status}}", containerId]);
     return result.replace(/['"]/g, "");
   } catch {
     return "removed";
@@ -99,11 +96,9 @@ function mapDockerState(dockerState: string): string {
  */
 async function getContainerPort(containerId: string): Promise<number | undefined> {
   try {
-    const result = await dockerExec(
-      `port ${containerId} 18789/tcp`
-    );
+    const result = await dockerExec(["port", containerId, "18789/tcp"]);
     // Output format: "0.0.0.0:32768" or ":::32768"
-    const match = result.match(/:(\d+)$/);
+    const match = /:(\d+)$/.exec(result);
     return match ? parseInt(match[1], 10) : undefined;
   } catch {
     return undefined;
@@ -120,34 +115,69 @@ async function configureOpenClaw(containerName: string): Promise<void> {
 
   try {
     // Configure gateway mode
-    await execAsync(
-      `docker exec ${containerName} sh -c "node openclaw.mjs config set gateway.mode local"`
-    );
+    await execFileAsync("docker", [
+      "exec",
+      containerName,
+      "node",
+      "openclaw.mjs",
+      "config",
+      "set",
+      "gateway.mode",
+      "local",
+    ]);
 
     // Enable Telegram channel
-    await execAsync(
-      `docker exec ${containerName} sh -c "node openclaw.mjs config set channels.telegram.enabled true"`
-    );
+    await execFileAsync("docker", [
+      "exec",
+      containerName,
+      "node",
+      "openclaw.mjs",
+      "config",
+      "set",
+      "channels.telegram.enabled",
+      "true",
+    ]);
 
     // Enable Telegram plugin
-    await execAsync(
-      `docker exec ${containerName} sh -c "node openclaw.mjs config set plugins.entries.telegram.enabled true"`
-    );
+    await execFileAsync("docker", [
+      "exec",
+      containerName,
+      "node",
+      "openclaw.mjs",
+      "config",
+      "set",
+      "plugins.entries.telegram.enabled",
+      "true",
+    ]);
 
     // Set open DM policy for development (no pairing required)
-    await execAsync(
-      `docker exec ${containerName} sh -c "node openclaw.mjs config set channels.telegram.allowFrom '[\\"*\\"]'"`
-    );
-    await execAsync(
-      `docker exec ${containerName} sh -c "node openclaw.mjs config set channels.telegram.dmPolicy open"`
-    );
+    await execFileAsync("docker", [
+      "exec",
+      containerName,
+      "node",
+      "openclaw.mjs",
+      "config",
+      "set",
+      "channels.telegram.allowFrom",
+      '["*"]',
+    ]);
+    await execFileAsync("docker", [
+      "exec",
+      containerName,
+      "node",
+      "openclaw.mjs",
+      "config",
+      "set",
+      "channels.telegram.dmPolicy",
+      "open",
+    ]);
 
     // Restart the gateway to apply changes
-    await dockerExec(`restart ${containerName}`);
+    await dockerExec(["restart", containerName]);
 
     console.log(`OpenClaw configured for container ${containerName}`);
   } catch (error) {
-    console.error(`Failed to configure OpenClaw: ${error}`);
+    console.error(`Failed to configure OpenClaw: ${String(error)}`);
     // Don't throw - container is running, just not fully configured
   }
 }
@@ -159,33 +189,41 @@ export const dockerProvider: InstanceProvider = {
     await checkDockerAvailable();
     await ensureImageExists();
 
-    const containerName = `openclaw-${config.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+    const containerName = `openclaw-${config.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${String(Date.now())}`;
 
-    // Generate a random gateway token for this instance
-    const gatewayToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    // Generate a cryptographically secure random gateway token
+    const gatewayToken = randomBytes(24).toString("hex");
 
-    // Build environment variables for OpenClaw
-    // See: https://docs.openclaw.ai/gateway/configuration
-    const envArgs: string[] = [
-      `-e NODE_ENV="production"`,
-      `-e TELEGRAM_BOT_TOKEN="${config.telegramBotToken}"`,
-      `-e OPENCLAW_GATEWAY_TOKEN="${gatewayToken}"`,
-      `-e OPENCLAW_DISABLE_BONJOUR="1"`, // Disable mDNS in containers
+    // Build docker run arguments
+    const runArgs: string[] = [
+      "run",
+      "-d",
+      "--name",
+      containerName,
+      "-e",
+      "NODE_ENV=production",
+      "-e",
+      `TELEGRAM_BOT_TOKEN=${config.telegramBotToken}`,
+      "-e",
+      `OPENCLAW_GATEWAY_TOKEN=${gatewayToken}`,
+      "-e",
+      "OPENCLAW_DISABLE_BONJOUR=1", // Disable mDNS in containers
     ];
 
     // Add the correct API key based on provider
     if (config.aiProvider === "openai") {
-      envArgs.push(`-e OPENAI_API_KEY="${config.aiApiKey}"`);
+      runArgs.push("-e", `OPENAI_API_KEY=${config.aiApiKey}`);
     } else if (config.aiProvider === "anthropic") {
-      envArgs.push(`-e ANTHROPIC_API_KEY="${config.aiApiKey}"`);
-    } else if (config.aiProvider === "google") {
-      envArgs.push(`-e GOOGLE_API_KEY="${config.aiApiKey}"`);
+      runArgs.push("-e", `ANTHROPIC_API_KEY=${config.aiApiKey}`);
+    } else {
+      runArgs.push("-e", `GOOGLE_API_KEY=${config.aiApiKey}`);
     }
 
+    // Add port mapping and image
+    runArgs.push("-p", "18789", OPENCLAW_IMAGE);
+
     // Create and start container with port 18789 (OpenClaw default)
-    const containerId = await dockerExec(
-      `run -d --name ${containerName} ${envArgs.join(" ")} -p 18789 ${OPENCLAW_IMAGE}`
-    );
+    const containerId = await dockerExec(runArgs);
 
     // Get the assigned port
     const port = await getContainerPort(containerId);
@@ -202,31 +240,33 @@ export const dockerProvider: InstanceProvider = {
   },
 
   async startInstance(data: ProviderInstanceData): Promise<void> {
-    if (!data.dockerContainerId) {
+    if (data.dockerContainerId === null || data.dockerContainerId === undefined) {
       throw new Error("Missing Docker container ID");
     }
     await checkDockerAvailable();
-    await dockerExec(`start ${data.dockerContainerId}`);
+    await dockerExec(["start", data.dockerContainerId]);
   },
 
   async stopInstance(data: ProviderInstanceData): Promise<void> {
-    if (!data.dockerContainerId) {
+    if (data.dockerContainerId === null || data.dockerContainerId === undefined) {
       throw new Error("Missing Docker container ID");
     }
     await checkDockerAvailable();
-    await dockerExec(`stop ${data.dockerContainerId}`);
+    await dockerExec(["stop", data.dockerContainerId]);
   },
 
   async deleteInstance(data: ProviderInstanceData): Promise<void> {
-    if (!data.dockerContainerId) return;
+    if (data.dockerContainerId === null || data.dockerContainerId === undefined) {
+      return;
+    }
 
     await checkDockerAvailable();
     // Force remove (stops if running)
-    await dockerExec(`rm -f ${data.dockerContainerId}`);
+    await dockerExec(["rm", "-f", data.dockerContainerId]);
   },
 
   async getInstanceStatus(data: ProviderInstanceData): Promise<string> {
-    if (!data.dockerContainerId) {
+    if (data.dockerContainerId === null || data.dockerContainerId === undefined) {
       return "UNKNOWN";
     }
     await checkDockerAvailable();

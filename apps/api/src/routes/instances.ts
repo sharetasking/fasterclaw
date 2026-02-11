@@ -2,7 +2,12 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { prisma, maskToken } from "@fasterclaw/db";
-import { getProvider, getProviderType } from "../services/providers/index.js";
+import {
+  getProvider,
+  getProviderByType,
+  getProviderType,
+  type ProviderType,
+} from "../services/providers/index.js";
 import { FlyApiError } from "../services/fly.js";
 import {
   CreateInstanceRequestSchema,
@@ -18,20 +23,34 @@ import {
  */
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof FlyApiError) {
-    if (error.status === 404) return "Machine not found on Fly.io";
-    if (error.status === 422) return `Invalid configuration: ${error.detail}`;
-    if (error.status === 429) return "Rate limited by Fly.io, please try again later";
+    if (error.status === 404) {
+      return "Machine not found on Fly.io";
+    }
+    if (error.status === 422) {
+      return `Invalid configuration: ${error.detail}`;
+    }
+    if (error.status === 429) {
+      return "Rate limited by Fly.io, please try again later";
+    }
     return `Fly.io error: ${error.detail}`;
   }
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    return error.message;
+  }
   return fallback;
 }
 
 // Helper to determine AI provider from model name
 function getAIProvider(model: string): "openai" | "anthropic" | "google" {
-  if (model.startsWith("gpt-") || model.startsWith("o1-")) return "openai";
-  if (model.startsWith("claude-")) return "anthropic";
-  if (model.startsWith("gemini-")) return "google";
+  if (model.startsWith("gpt-") || model.startsWith("o1-")) {
+    return "openai";
+  }
+  if (model.startsWith("claude-")) {
+    return "anthropic";
+  }
+  if (model.startsWith("gemini-")) {
+    return "google";
+  }
   return "anthropic"; // default to anthropic for OpenClaw
 }
 
@@ -50,7 +69,7 @@ function getAPIKeyForProvider(provider: "openai" | "anthropic" | "google"): stri
   };
 
   const key = keys[provider];
-  if (!key) {
+  if (key === undefined || key === "") {
     throw new Error(
       `Missing API key for provider "${provider}". Set ${envVarNames[provider]} environment variable.`
     );
@@ -125,13 +144,13 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         };
 
         if (data.ok && data.result) {
-          return reply.send({
+          return await reply.send({
             valid: true,
             botUsername: data.result.username,
             botName: data.result.first_name,
           });
         } else {
-          return reply.send({
+          return await reply.send({
             valid: false,
             error: data.description ?? "Invalid bot token",
           });
@@ -173,7 +192,7 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         where: { userId },
       });
 
-      if (!subscription || subscription.status !== "ACTIVE") {
+      if (subscription?.status !== "ACTIVE") {
         return reply.code(403).send({
           error: "Active subscription required. Please subscribe to create instances.",
         });
@@ -189,7 +208,7 @@ export function instanceRoutes(fastify: FastifyInstance): void {
 
       if (subscription.instanceLimit !== -1 && instanceCount >= subscription.instanceLimit) {
         return reply.code(403).send({
-          error: `Instance limit reached (${subscription.instanceLimit}). Please upgrade your plan or delete existing instances.`,
+          error: `Instance limit reached (${String(subscription.instanceLimit)}). Please upgrade your plan or delete existing instances.`,
         });
       }
 
@@ -243,7 +262,7 @@ export function instanceRoutes(fastify: FastifyInstance): void {
             if (providerType === "fly") {
               updateData.flyMachineId = result.providerId;
               updateData.flyAppName = result.providerAppId;
-            } else if (providerType === "docker") {
+            } else {
               updateData.dockerContainerId = result.providerId;
               updateData.dockerPort = result.port;
             }
@@ -430,16 +449,16 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         return reply.code(400).send({ error: "Instance is not stopped" });
       }
 
-      // Get provider based on instance's provider field
-      const provider = getProvider();
+      // Get provider based on instance's stored provider type
+      const provider = getProviderByType(instance.provider as ProviderType);
 
       // Check for required provider data
       if (instance.provider === "fly") {
-        if (!instance.flyMachineId || !instance.flyAppName) {
+        if (instance.flyMachineId === null || instance.flyAppName === null) {
           return reply.code(400).send({ error: "No machine ID or app name found" });
         }
       } else if (instance.provider === "docker") {
-        if (!instance.dockerContainerId) {
+        if (instance.dockerContainerId === null) {
           return reply.code(400).send({ error: "No Docker container ID found" });
         }
       }
@@ -504,15 +523,16 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         return reply.code(400).send({ error: "Instance is not running" });
       }
 
-      const provider = getProvider();
+      // Get provider based on instance's stored provider type
+      const provider = getProviderByType(instance.provider as ProviderType);
 
       // Check for required provider data
       if (instance.provider === "fly") {
-        if (!instance.flyMachineId || !instance.flyAppName) {
+        if (instance.flyMachineId === null || instance.flyAppName === null) {
           return reply.code(400).send({ error: "No machine ID or app name found" });
         }
       } else if (instance.provider === "docker") {
-        if (!instance.dockerContainerId) {
+        if (instance.dockerContainerId === null) {
           return reply.code(400).send({ error: "No Docker container ID found" });
         }
       }
@@ -566,19 +586,20 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         where: { id, userId },
       });
 
-      if (!instance) {
+      if (instance === null) {
         return reply.code(404).send({ error: "Instance not found" });
       }
 
       // Check if we have provider data to sync
-      const hasFlyData = instance.flyAppName && instance.flyMachineId;
-      const hasDockerData = instance.dockerContainerId;
+      const hasFlyData = instance.flyAppName !== null && instance.flyMachineId !== null;
+      const hasDockerData = instance.dockerContainerId !== null;
 
       if (!hasFlyData && !hasDockerData) {
         return reply.send(formatInstanceResponse(instance));
       }
 
-      const provider = getProvider();
+      // Get provider based on instance's stored provider type
+      const provider = getProviderByType(instance.provider as ProviderType);
 
       try {
         const newStatus = await provider.getInstanceStatus({
@@ -593,10 +614,12 @@ export function instanceRoutes(fastify: FastifyInstance): void {
           data: { status: newStatus },
         });
 
-        return reply.send(formatInstanceResponse(updatedInstance));
+        return await reply.send(formatInstanceResponse(updatedInstance));
       } catch (error) {
         app.log.error(error, `Failed to sync status for instance ${id}`);
-        return reply.code(400).send({ error: getErrorMessage(error, "Failed to sync instance status") });
+        return reply
+          .code(400)
+          .send({ error: getErrorMessage(error, "Failed to sync instance status") });
       }
     }
   );
@@ -636,7 +659,8 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         return reply.code(404).send({ error: "Instance not found" });
       }
 
-      const provider = getProvider();
+      // Get provider based on instance's stored provider type
+      const provider = getProviderByType(instance.provider as ProviderType);
 
       try {
         // Delete instance from provider
@@ -666,11 +690,11 @@ export function instanceRoutes(fastify: FastifyInstance): void {
  * Background job: sync all non-terminal instance statuses from their providers.
  * Call this on an interval (e.g. every 60s) after the server starts.
  */
-export async function syncAllInstanceStatuses(
-  log?: { info: (...args: unknown[]) => void; error: (...args: unknown[]) => void }
-): Promise<void> {
+export async function syncAllInstanceStatuses(log?: {
+  info: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+}): Promise<void> {
   const activeStatuses = ["CREATING", "PROVISIONING", "RUNNING", "STARTING", "STOPPING"];
-  const provider = getProvider();
 
   const instances = await prisma.instance.findMany({
     where: {
@@ -683,10 +707,15 @@ export async function syncAllInstanceStatuses(
   });
 
   for (const instance of instances) {
-    const hasFlyData = instance.flyAppName && instance.flyMachineId;
-    const hasDockerData = instance.dockerContainerId;
+    const hasFlyData = instance.flyAppName !== null && instance.flyMachineId !== null;
+    const hasDockerData = instance.dockerContainerId !== null;
 
-    if (!hasFlyData && !hasDockerData) continue;
+    if (!hasFlyData && !hasDockerData) {
+      continue;
+    }
+
+    // Get provider based on instance's stored provider type
+    const provider = getProviderByType(instance.provider as ProviderType);
 
     try {
       const newStatus = await provider.getInstanceStatus({

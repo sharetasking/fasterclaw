@@ -36,7 +36,7 @@ model Instance {
   ipAddress         String?
   status            String   @default("pending") // pending, provisioning, running, stopped, error
   telegramBotToken  String?
-  aiModel           String   @default("claude-sonnet-4")
+  aiModel           String   @default("claude-sonnet-4-0")
   region            String   @default("iad")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

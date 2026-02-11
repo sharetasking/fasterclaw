@@ -48,13 +48,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "email",
-          "name",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "email", "name", "createdAt", "updatedAt"]
       },
       "TokenResponse": {
         "type": "object",
@@ -66,10 +60,7 @@
             "$ref": "#/components/schemas/User"
           }
         },
-        "required": [
-          "accessToken",
-          "user"
-        ]
+        "required": ["accessToken", "user"]
       },
       "ApiError": {
         "type": "object",
@@ -78,9 +69,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "error"
-        ]
+        "required": ["error"]
       },
       "RegisterRequest": {
         "type": "object",
@@ -98,11 +87,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "email",
-          "password",
-          "name"
-        ]
+        "required": ["email", "password", "name"]
       },
       "LoginRequest": {
         "type": "object",
@@ -115,10 +100,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "email",
-          "password"
-        ]
+        "required": ["email", "password"]
       },
       "UpdateProfileRequest": {
         "type": "object",
@@ -129,9 +111,7 @@
             "maxLength": 100
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "ApiMessage": {
         "type": "object",
@@ -140,9 +120,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "message"
-        ]
+        "required": ["message"]
       },
       "UpdatePasswordRequest": {
         "type": "object",
@@ -155,10 +133,7 @@
             "minLength": 8
           }
         },
-        "required": [
-          "currentPassword",
-          "newPassword"
-        ]
+        "required": ["currentPassword", "newPassword"]
       },
       "Instance": {
         "type": "object",
@@ -255,13 +230,10 @@
           },
           "aiModel": {
             "type": "string",
-            "default": "claude-sonnet-4"
+            "default": "claude-sonnet-4-0"
           }
         },
-        "required": [
-          "name",
-          "telegramBotToken"
-        ]
+        "required": ["name", "telegramBotToken"]
       },
       "InstanceList": {
         "type": "array",
@@ -293,9 +265,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "ValidateTelegramTokenResponse": {
         "type": "object",
@@ -313,9 +283,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "valid"
-        ]
+        "required": ["valid"]
       },
       "ValidateTelegramTokenRequest": {
         "type": "object",
@@ -325,9 +293,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "token"
-        ]
+        "required": ["token"]
       },
       "CheckoutResponse": {
         "type": "object",
@@ -337,25 +303,17 @@
             "format": "uri"
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "CreateCheckoutRequest": {
         "type": "object",
         "properties": {
           "plan": {
             "type": "string",
-            "enum": [
-              "starter",
-              "pro",
-              "enterprise"
-            ]
+            "enum": ["starter", "pro", "enterprise"]
           }
         },
-        "required": [
-          "plan"
-        ]
+        "required": ["plan"]
       },
       "PortalResponse": {
         "type": "object",
@@ -365,9 +323,7 @@
             "format": "uri"
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "Invoice": {
         "type": "object",
@@ -401,15 +357,7 @@
             "format": "uri"
           }
         },
-        "required": [
-          "id",
-          "amount",
-          "status",
-          "createdAt",
-          "paidAt",
-          "invoiceUrl",
-          "invoicePdf"
-        ]
+        "required": ["id", "amount", "status", "createdAt", "paidAt", "invoiceUrl", "invoicePdf"]
       },
       "InvoiceList": {
         "type": "array",
@@ -441,11 +389,7 @@
           "plan": {
             "type": "string",
             "nullable": true,
-            "enum": [
-              "starter",
-              "pro",
-              "enterprise"
-            ]
+            "enum": ["starter", "pro", "enterprise"]
           },
           "instanceLimit": {
             "type": "number"
@@ -508,13 +452,7 @@
             }
           }
         },
-        "required": [
-          "name",
-          "priceId",
-          "price",
-          "instanceLimit",
-          "features"
-        ]
+        "required": ["name", "priceId", "price", "instanceLimit", "features"]
       },
       "Plans": {
         "type": "object",
@@ -540,10 +478,7 @@
             "$ref": "#/components/schemas/Plans"
           }
         },
-        "required": [
-          "subscription",
-          "plans"
-        ]
+        "required": ["subscription", "plans"]
       },
       "WebhookResponse": {
         "type": "object",
@@ -552,9 +487,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "received"
-        ]
+        "required": ["received"]
       }
     },
     "parameters": {}
@@ -562,9 +495,7 @@
   "paths": {
     "/auth/register": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Register a new user",
         "requestBody": {
           "content": {
@@ -611,9 +542,7 @@
     },
     "/auth/login": {
       "post": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Login with email and password",
         "requestBody": {
           "content": {
@@ -650,9 +579,7 @@
     },
     "/auth/me": {
       "get": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Get current authenticated user",
         "security": [
           {
@@ -685,9 +612,7 @@
     },
     "/auth/profile": {
       "patch": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Update user profile",
         "security": [
           {
@@ -729,9 +654,7 @@
     },
     "/auth/password": {
       "patch": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Change user password",
         "security": [
           {
@@ -783,9 +706,7 @@
     },
     "/auth/account": {
       "delete": {
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "summary": "Delete user account",
         "security": [
           {
@@ -818,9 +739,7 @@
     },
     "/instances": {
       "post": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Create a new OpenClaw instance",
         "security": [
           {
@@ -870,9 +789,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "List all instances for the authenticated user",
         "security": [
           {
@@ -905,9 +822,7 @@
     },
     "/instances/{id}": {
       "get": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Get an instance by ID",
         "security": [
           {
@@ -959,9 +874,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Update an instance (must be stopped)",
         "security": [
           {
@@ -1032,9 +945,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Delete an instance",
         "security": [
           {
@@ -1098,9 +1009,7 @@
     },
     "/instances/{id}/start": {
       "post": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Start a stopped instance",
         "security": [
           {
@@ -1164,9 +1073,7 @@
     },
     "/instances/{id}/stop": {
       "post": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Stop a running instance",
         "security": [
           {
@@ -1230,9 +1137,7 @@
     },
     "/instances/validate-telegram-token": {
       "post": {
-        "tags": [
-          "Instances"
-        ],
+        "tags": ["Instances"],
         "summary": "Validate a Telegram bot token",
         "security": [
           {
@@ -1284,9 +1189,7 @@
     },
     "/billing/checkout": {
       "post": {
-        "tags": [
-          "Billing"
-        ],
+        "tags": ["Billing"],
         "summary": "Create Stripe Checkout session for subscription",
         "security": [
           {
@@ -1338,9 +1241,7 @@
     },
     "/billing/portal": {
       "post": {
-        "tags": [
-          "Billing"
-        ],
+        "tags": ["Billing"],
         "summary": "Create Stripe Customer Portal session",
         "security": [
           {
@@ -1383,9 +1284,7 @@
     },
     "/billing/invoices": {
       "get": {
-        "tags": [
-          "Billing"
-        ],
+        "tags": ["Billing"],
         "summary": "Get invoice history from Stripe",
         "security": [
           {
@@ -1418,9 +1317,7 @@
     },
     "/billing/subscription": {
       "get": {
-        "tags": [
-          "Billing"
-        ],
+        "tags": ["Billing"],
         "summary": "Get current subscription status",
         "security": [
           {
@@ -1453,9 +1350,7 @@
     },
     "/billing/webhook": {
       "post": {
-        "tags": [
-          "Billing"
-        ],
+        "tags": ["Billing"],
         "summary": "Handle Stripe webhook events",
         "responses": {
           "200": {
@@ -1477,15 +1372,23 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Server configuration error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         }
       }
     },
     "/health": {
       "get": {
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "summary": "Health check endpoint",
         "responses": {
           "200": {
@@ -1497,19 +1400,14 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
+                      "enum": ["ok"]
                     },
                     "timestamp": {
                       "type": "string",
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "status",
-                    "timestamp"
-                  ]
+                  "required": ["status", "timestamp"]
                 }
               }
             }

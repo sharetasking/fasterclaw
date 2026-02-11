@@ -17,7 +17,6 @@ async function start(): Promise<void> {
       host,
     });
 
-    // eslint-disable-next-line no-console -- Server startup message
     console.log(`
 🚀 FasterClaw API is running!
 
@@ -47,7 +46,6 @@ Environment: ${process.env.NODE_ENV ?? "development"}
     process.on("SIGTERM", () => void shutdown());
     process.on("SIGINT", () => void shutdown());
   } catch (error) {
-    // eslint-disable-next-line no-console -- Server error message
     console.error("Failed to start server:", error);
     process.exit(1);
   }
