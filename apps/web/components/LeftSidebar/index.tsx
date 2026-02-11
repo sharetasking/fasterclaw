@@ -73,8 +73,14 @@ const LeftSidebar = ({
             url: "/dashboard/billing",
         },
         {
-            title: "Updates & FAQ",
+            title: "Pricing",
             icon: "barcode",
+            color: "fill-accent-5",
+            url: "/pricing",
+        },
+        {
+            title: "Updates & FAQ",
+            icon: "info-circle",
             color: "fill-primary-2",
             url: "/updates-and-faq",
         },
