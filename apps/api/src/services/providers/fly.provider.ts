@@ -58,7 +58,7 @@ export const flyProvider: InstanceProvider = {
       config: {
         image: "ghcr.io/openclaw/openclaw:latest",
         env: {
-          TELEGRAM_BOT_TOKEN: config.telegramBotToken,
+          ...(config.telegramBotToken !== undefined && { TELEGRAM_BOT_TOKEN: config.telegramBotToken }),
           ...(config.aiProvider === "openai" && { OPENAI_API_KEY: config.aiApiKey }),
           ...(config.aiProvider === "anthropic" && { ANTHROPIC_API_KEY: config.aiApiKey }),
           ...(config.aiProvider === "google" && { GOOGLE_API_KEY: config.aiApiKey }),

@@ -9,7 +9,7 @@ extendZodWithOpenApi(z);
 
 export const UserSchema = z
   .object({
-    id: z.string().cuid(),
+    id: z.string(),
     email: z.string().email(),
     name: z.string().nullable(),
     createdAt: z.string().datetime(),

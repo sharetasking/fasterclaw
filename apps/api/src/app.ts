@@ -12,6 +12,7 @@ import { authRoutes } from "./routes/auth.js";
 import { googleAuthRoutes } from "./routes/google-auth.js";
 import { instanceRoutes } from "./routes/instances.js";
 import { billingRoutes } from "./routes/billing.js";
+import { chatRoutes } from "./routes/chat.js";
 
 export interface CreateAppOptions {
   /** Fastify server options */
@@ -110,6 +111,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   }
   await app.register(instanceRoutes);
   await app.register(billingRoutes);
+  await app.register(chatRoutes);
 
   return app;
 }

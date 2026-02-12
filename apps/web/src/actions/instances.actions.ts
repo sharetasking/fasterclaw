@@ -13,7 +13,7 @@ import {
   type CreateInstanceRequest,
   type ValidateTelegramTokenResponse,
 } from "@fasterclaw/api-client";
-import { createAuthenticatedClient } from "@/lib/api-client";
+import { createAuthenticatedClient, getAuthToken } from "@/lib/api-client";
 
 // NOTE: Types are NOT re-exported from Server Actions files.
 // Import types directly from @fasterclaw/api-client instead.
@@ -185,5 +185,81 @@ export async function retryInstance(id: string): Promise<ActionResult<Instance>>
   } catch (error) {
     console.error("Retry instance error:", error);
     return { success: false, error: getErrorMessage(error) };
+  }
+}
+
+/**
+ * Get the user's default instance (auto-created on signup).
+ * If no instance exists, triggers creation of a default one via the API.
+ */
+export async function getDefaultInstance(): Promise<Instance | null> {
+  try {
+    const instances = await getInstances();
+    const defaultInstance = instances.find((i) => "isDefault" in i && i.isDefault === true) ?? (instances.length > 0 ? instances[0] : undefined);
+
+    if (defaultInstance !== undefined) {
+      return defaultInstance;
+    }
+
+    // No instance found — create a default one
+    const token = await getAuthToken();
+    if (token == null || token === "") {
+      return null;
+    }
+
+    const apiUrl = process.env.API_URL ?? "http://localhost:3001";
+    const response = await fetch(`${apiUrl}/instances/create-default`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as Instance;
+    return data;
+  } catch (error) {
+    console.error("Get default instance error:", error);
+    return null;
+  }
+}
+
+/**
+ * Send a chat message to an OpenClaw instance
+ */
+export async function sendChatMessage(
+  instanceId: string,
+  message: string
+): Promise<ActionResult<{ response: string }>> {
+  try {
+    const token = await getAuthToken();
+    if (token == null || token === "") {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    const apiUrl = process.env.API_URL ?? "http://localhost:3001";
+    const response = await fetch(`${apiUrl}/instances/${instanceId}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as { error?: string };
+      return { success: false, error: errorData.error ?? "Failed to send message" };
+    }
+
+    const data = (await response.json()) as { response: string };
+    return { success: true, data };
+  } catch (error) {
+    console.error("Send chat message error:", error);
+    return { success: false, error: "Failed to send message" };
   }
 }

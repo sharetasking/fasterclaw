@@ -6,11 +6,12 @@
 export interface CreateInstanceConfig {
   name: string;
   userId: string;
-  telegramBotToken: string;
+  telegramBotToken?: string; // Optional for quick start mode
   aiProvider: "openai" | "anthropic" | "google";
   aiApiKey: string;
   aiModel: string;
   region?: string;
+  quickStart?: boolean; // If true, enables web channel instead of Telegram
 }
 
 export interface ProviderResult {

@@ -3,10 +3,14 @@
 import Layout from "@/components/Layout";
 import Main from "./Main";
 
-const HomePage = () => {
+type HomePageProps = {
+    instance?: any | null;
+};
+
+const HomePage = ({ instance }: HomePageProps) => {
     return (
         <Layout>
-            <Main />
+            <Main instance={instance ?? null} />
         </Layout>
     );
 };

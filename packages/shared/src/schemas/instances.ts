@@ -25,8 +25,8 @@ export const InstanceStatusSchema = z.enum([
 
 export const InstanceSchema = z
   .object({
-    id: z.string().cuid(),
-    userId: z.string().cuid(),
+    id: z.string(),
+    userId: z.string(),
     name: z.string(),
     provider: z.string(), // "fly" or "docker"
     flyAppName: z.string().nullable(),
@@ -38,6 +38,7 @@ export const InstanceSchema = z
     aiModel: z.string(),
     telegramBotToken: z.string().nullable(),
     ipAddress: z.string().nullable(),
+    isDefault: z.boolean(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
@@ -52,9 +53,10 @@ export const InstanceListSchema = z.array(InstanceSchema).openapi("InstanceList"
 export const CreateInstanceRequestSchema = z
   .object({
     name: z.string().min(1, "Name is required").max(50, "Name must be 50 characters or less"),
-    telegramBotToken: z.string().min(1, "Telegram bot token is required"),
+    telegramBotToken: z.string().min(1).optional(), // Optional for quick start mode
     region: z.string().default("lax"),
     aiModel: z.string().default("claude-sonnet-4-0"),
+    quickStart: z.boolean().default(false), // If true, creates instance without Telegram
   })
   .openapi("CreateInstanceRequest");
 
@@ -68,7 +70,7 @@ export const UpdateInstanceRequestSchema = z
 
 export const InstanceIdParamSchema = z
   .object({
-    id: z.string().cuid(),
+    id: z.string(),
   })
   .openapi("InstanceIdParam");
 

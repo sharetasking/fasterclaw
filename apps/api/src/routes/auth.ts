@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@fasterclaw/db";
 import { stripe } from "../services/stripe.js";
+import { provisionInstance } from "../services/instance-provisioner.js";
 import {
   RegisterRequestSchema,
   LoginRequestSchema,
@@ -73,6 +74,18 @@ export function authRoutes(fastify: FastifyInstance): void {
       });
 
       const accessToken = generateToken(user);
+
+      // Auto-create default quickStart instance (bypasses subscription check)
+      try {
+        void provisionInstance({
+          userId: user.id,
+          name: "My Assistant",
+          quickStart: true,
+          isDefault: true,
+        });
+      } catch (error) {
+        app.log.error(error, "Failed to auto-create default instance");
+      }
 
       return reply.code(201).send({
         accessToken,
