@@ -227,3 +227,38 @@ export async function getMachine(appName: string, machineId: string): Promise<Ma
 export async function listMachines(appName: string): Promise<Machine[]> {
   return flyRequest(`/apps/${appName}/machines`, {}, "listMachines") as Promise<Machine[]>;
 }
+
+interface ExecResult {
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+}
+
+/**
+ * Execute a command on a running Fly Machine.
+ * Equivalent to `docker exec` but via the Machines HTTP API.
+ *
+ * @see https://fly.io/docs/machines/api/machines-resource/#execute-a-command-on-a-machine
+ */
+export async function execOnMachine(
+  appName: string,
+  machineId: string,
+  command: string[],
+  options?: { timeout?: number },
+): Promise<ExecResult> {
+  const body: Record<string, unknown> = { cmd: command };
+  if (options?.timeout != null) {
+    body.timeout = options.timeout;
+  }
+
+  const result = await flyRequest(
+    `/apps/${appName}/machines/${machineId}/exec`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    "execOnMachine",
+  );
+
+  return result as ExecResult;
+}

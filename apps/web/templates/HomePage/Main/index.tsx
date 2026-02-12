@@ -3,13 +3,31 @@ import Message from "@/components/Message";
 import Menu from "@/components/Menu";
 import Question from "@/components/Question";
 import Answer from "@/components/Answer";
-import { sendChatMessage, getInstance } from "@/actions/instances.actions";
+import { sendChatMessage, uploadChatFile, getInstance } from "@/actions/instances.actions";
 import { navigation } from "@/constants/navigation";
+import toast from "react-hot-toast";
+
+interface AttachedFile {
+    file: File;
+    previewUrl?: string;
+    name: string;
+    isImage: boolean;
+}
+
+interface UploadedFile {
+    filePath: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+}
 
 interface ChatMessage {
     role: "user" | "assistant";
     content: string;
     timestamp: Date;
+    fileName?: string;
+    isImage?: boolean;
+    imagePreview?: string;
 }
 
 type MainProps = {
@@ -21,6 +39,9 @@ const Main = ({ instance: initialInstance }: MainProps) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [instance, setInstance] = useState(initialInstance);
+    const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
+    const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Poll for instance status if not yet running
@@ -58,10 +79,67 @@ const Main = ({ instance: initialInstance }: MainProps) => {
         }
     }, [messages]);
 
+    // Clean up preview URLs on unmount
+    useEffect(() => {
+        return () => {
+            if (attachedFile?.previewUrl) {
+                URL.revokeObjectURL(attachedFile.previewUrl);
+            }
+        };
+    }, [attachedFile]);
+
+    const handleFileSelect = async (file: File) => {
+        if (!instance) return;
+
+        const isImage = file.type.startsWith("image/");
+        const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
+
+        setAttachedFile({
+            file,
+            previewUrl,
+            name: file.name,
+            isImage,
+        });
+
+        // Upload the file to the container immediately
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const result = await uploadChatFile(instance.id, formData);
+            if (result.success) {
+                setUploadedFile(result.data);
+            } else {
+                toast.error(result.error);
+                setAttachedFile(null);
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+            }
+        } catch {
+            toast.error("Failed to upload file");
+            setAttachedFile(null);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleFileRemove = () => {
+        if (attachedFile?.previewUrl) {
+            URL.revokeObjectURL(attachedFile.previewUrl);
+        }
+        setAttachedFile(null);
+        setUploadedFile(null);
+    };
+
     const handleSend = async () => {
+        const hasMessage = message.trim() !== "";
+        const hasFile = attachedFile != null && uploadedFile != null;
+
         if (
-            !message.trim() ||
+            (!hasMessage && !hasFile) ||
             isLoading ||
+            isUploading ||
             !instance ||
             instance.status !== "RUNNING"
         )
@@ -69,16 +147,27 @@ const Main = ({ instance: initialInstance }: MainProps) => {
 
         const userMsg: ChatMessage = {
             role: "user",
-            content: message.trim(),
+            content: hasMessage ? message.trim() : `Sent file: ${attachedFile?.name ?? "file"}`,
             timestamp: new Date(),
+            fileName: attachedFile?.name,
+            isImage: attachedFile?.isImage,
+            imagePreview: attachedFile?.previewUrl,
         };
+
+        const filePath = uploadedFile?.filePath;
 
         setMessages((prev) => [...prev, userMsg]);
         setMessage("");
+        setAttachedFile(null);
+        setUploadedFile(null);
         setIsLoading(true);
 
         try {
-            const result = await sendChatMessage(instance.id, userMsg.content);
+            const result = await sendChatMessage(
+                instance.id,
+                hasMessage ? userMsg.content : `Please analyze the attached file: ${attachedFile?.name ?? "file"}`,
+                filePath,
+            );
             if (result.success && result.data) {
                 setMessages((prev) => [
                     ...prev,
@@ -170,7 +259,7 @@ const Main = ({ instance: initialInstance }: MainProps) => {
                                     </div>
                                     <div className="body1 text-n-4 2xl:body1S">
                                         {instance
-                                            ? "Send a message to your AI assistant"
+                                            ? "Send a message or upload a file to your AI assistant"
                                             : "Chat with the smartest AI - Experience the power of AI with us"}
                                     </div>
                                 </div>
@@ -190,6 +279,8 @@ const Main = ({ instance: initialInstance }: MainProps) => {
                                 <Question
                                     key={i}
                                     content={msg.content}
+                                    document={msg.fileName && !msg.isImage ? msg.fileName : undefined}
+                                    image={msg.imagePreview}
                                     time={formatTime(msg.timestamp)}
                                 />
                             ) : (
@@ -209,13 +300,17 @@ const Main = ({ instance: initialInstance }: MainProps) => {
                 value={message}
                 onChange={(e: any) => setMessage(e.target.value)}
                 onSend={handleSend}
+                onFileSelect={handleFileSelect}
+                onFileRemove={handleFileRemove}
+                attachedFile={attachedFile}
+                isUploading={isUploading}
                 disabled={isLoading || !isReady}
                 placeholder={
                     !instance
                         ? "Ask Brainwave anything"
                         : !isReady
                           ? "Waiting for assistant to be ready..."
-                          : "Type your message..."
+                          : "Type your message or attach a file..."
                 }
             />
         </>

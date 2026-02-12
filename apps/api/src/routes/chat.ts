@@ -1,84 +1,40 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { prisma } from "@fasterclaw/db";
-
-const execFileAsync = promisify(execFile);
-
-interface OpenClawAgentResponse {
-  payloads: { text: string; mediaUrl: string | null }[];
-  meta: {
-    durationMs: number;
-    agentMeta: {
-      sessionId: string;
-      provider: string;
-      model: string;
-    };
-  };
-}
+import { getProviderByType, type ProviderType } from "../services/providers/index.js";
 
 /**
- * Send a message to an OpenClaw Docker container via the agent CLI.
- * Uses `docker exec <containerId> node openclaw.mjs agent --local ...`
- *
- * The agent may write diagnostic warnings to stderr (e.g. "Channel is required")
- * even when it produces a valid JSON response on stdout. We handle this by
- * catching the exec error and still attempting to parse stdout.
+ * Validate the instance for chat: must exist, be owned by user, and RUNNING.
+ * Returns the instance or sends an error reply and returns null.
  */
-async function sendToOpenClaw(
-  dockerContainerId: string,
-  sessionId: string,
-  message: string,
-  timeoutSeconds = 120,
-): Promise<string> {
-  const args = [
-    "exec",
-    dockerContainerId,
-    "node",
-    "openclaw.mjs",
-    "agent",
-    "--local",
-    "--session-id",
-    sessionId,
-    "--message",
-    message,
-    "--json",
-    "--timeout",
-    String(timeoutSeconds),
-  ];
+async function validateChatInstance(
+  userId: string,
+  instanceId: string,
+  reply: any,
+) {
+  const instance = await prisma.instance.findFirst({
+    where: { id: instanceId, userId },
+  });
 
-  let stdout: string;
-  try {
-    const result = await execFileAsync("docker", args, {
-      timeout: (timeoutSeconds + 10) * 1000,
-      maxBuffer: 10 * 1024 * 1024, // 10 MB for large JSON responses
+  if (instance === null) {
+    reply.code(404).send({ error: "Instance not found" });
+    return null;
+  }
+
+  if (instance.status !== "RUNNING") {
+    reply.code(400).send({
+      error: `Instance is not running. Current status: ${instance.status}`,
     });
-    stdout = result.stdout;
-  } catch (error: unknown) {
-    // execFileAsync throws if the process exits non-zero OR writes to stderr.
-    // The agent often writes diagnostic warnings to stderr but still produces
-    // a valid JSON response on stdout. Try to extract stdout from the error.
-    const execError = error as { stdout?: string; killed?: boolean; signal?: string };
-    if (execError.stdout?.includes('"payloads"') === true) {
-      stdout = execError.stdout;
-    } else {
-      throw error;
-    }
+    return null;
   }
 
-  const parsed = JSON.parse(stdout) as OpenClawAgentResponse;
-
-  if (parsed.payloads.length === 0) {
-    return "No response from assistant";
-  }
-
-  return parsed.payloads.map((p) => p.text).join("\n");
+  return instance;
 }
 
 /**
- * Chat routes for communicating with OpenClaw instances via CLI agent
+ * Chat routes for communicating with OpenClaw instances via the provider abstraction.
+ * Works with both Docker (development) and Fly.io (production) providers.
  */
 export function chatRoutes(fastify: FastifyInstance): void {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -95,6 +51,7 @@ export function chatRoutes(fastify: FastifyInstance): void {
         }),
         body: z.object({
           message: z.string().min(1, "Message is required"),
+          filePath: z.string().optional(),
         }),
         response: {
           200: z.object({
@@ -120,49 +77,101 @@ export function chatRoutes(fastify: FastifyInstance): void {
     async (request, reply) => {
       const userId = request.user.id;
       const { id } = request.params;
-      const { message } = request.body;
+      const { message, filePath } = request.body;
 
-      // Get instance and verify ownership
-      const instance = await prisma.instance.findFirst({
-        where: {
-          id,
-          userId,
-        },
-      });
-
-      if (instance === null) {
-        return reply.code(404).send({ error: "Instance not found" });
-      }
-
-      // Only allow chat for running instances
-      if (instance.status !== "RUNNING") {
-        return reply.code(400).send({
-          error: `Instance is not running. Current status: ${instance.status}`,
-        });
-      }
-
-      // Only allow chat for Docker instances
-      if (instance.provider !== "docker" || instance.dockerContainerId === null) {
-        return reply.code(400).send({
-          error: "Chat is only available for Docker instances",
-        });
-      }
+      const instance = await validateChatInstance(userId, id, reply);
+      if (instance === null) return;
 
       try {
-        // Use a stable session ID based on user + instance so conversation persists
+        const provider = getProviderByType(instance.provider as ProviderType);
         const sessionId = `web-${userId}-${id}`;
 
-        const responseText = await sendToOpenClaw(
-          instance.dockerContainerId,
+        // If a file was uploaded, prepend the file path info to the message
+        const fullMessage = filePath
+          ? `[Attached file: ${filePath}]\n\n${message}`
+          : message;
+
+        const result = await provider.sendMessage(
+          {
+            flyMachineId: instance.flyMachineId,
+            flyAppName: instance.flyAppName,
+            dockerContainerId: instance.dockerContainerId,
+            dockerPort: instance.dockerPort,
+          },
           sessionId,
-          message,
+          fullMessage,
         );
 
-        return await reply.send({ response: responseText });
+        return await reply.send({ response: result.response });
       } catch (error) {
         app.log.error(error, `Failed to send chat message to instance ${id}`);
         return reply.code(500).send({
           error: "Failed to communicate with OpenClaw instance",
+        });
+      }
+    }
+  );
+
+  // POST /instances/:id/chat/upload - Upload a file to the instance
+  app.post(
+    "/instances/:id/chat/upload",
+    {
+      schema: {
+        tags: ["Chat"],
+        summary: "Upload a file to an OpenClaw instance for use in chat",
+        params: z.object({
+          id: z.string(),
+        }),
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const userId = request.user.id;
+      const { id } = request.params as { id: string };
+
+      const instance = await validateChatInstance(userId, id, reply);
+      if (instance === null) return;
+
+      try {
+        const file = await request.file();
+        if (!file) {
+          return reply.code(400).send({ error: "No file uploaded" });
+        }
+
+        // Read the file into a buffer
+        const chunks: Buffer[] = [];
+        for await (const chunk of file.file) {
+          chunks.push(chunk);
+        }
+        const fileBuffer = Buffer.concat(chunks);
+
+        if (fileBuffer.length === 0) {
+          return reply.code(400).send({ error: "Empty file" });
+        }
+
+        const provider = getProviderByType(instance.provider as ProviderType);
+        const result = await provider.uploadFile(
+          {
+            flyMachineId: instance.flyMachineId,
+            flyAppName: instance.flyAppName,
+            dockerContainerId: instance.dockerContainerId,
+            dockerPort: instance.dockerPort,
+          },
+          fileBuffer,
+          file.filename,
+        );
+
+        return await reply.send({
+          filePath: result.filePath,
+          fileName: file.filename,
+          fileSize: fileBuffer.length,
+          mimeType: file.mimetype,
+        });
+      } catch (error) {
+        app.log.error(error, `Failed to upload file for instance ${id}`);
+        return reply.code(500).send({
+          error: "Failed to upload file to instance",
         });
       }
     }
@@ -201,12 +210,8 @@ export function chatRoutes(fastify: FastifyInstance): void {
       const userId = request.user.id;
       const { id } = request.params;
 
-      // Get instance and verify ownership
       const instance = await prisma.instance.findFirst({
-        where: {
-          id,
-          userId,
-        },
+        where: { id, userId },
       });
 
       if (instance === null) {
@@ -218,6 +223,3 @@ export function chatRoutes(fastify: FastifyInstance): void {
     }
   );
 }
-
-
-

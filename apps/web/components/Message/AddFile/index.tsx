@@ -1,42 +1,62 @@
-import { useState } from "react";
+import { useRef } from "react";
 import Icon from "@/components/Icon";
-import Modal from "@/components/Modal";
 
-type AddFileProps = {};
+type AddFileProps = {
+    onFileSelect: (file: File) => void;
+    disabled?: boolean;
+};
 
-const AddFile = ({}: AddFileProps) => {
-    const [visible, setVisible] = useState<boolean>(false);
+const ACCEPTED_TYPES = [
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "application/json",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+].join(",");
+
+const AddFile = ({ onFileSelect, disabled }: AddFileProps) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleClick = () => {
+        if (!disabled) {
+            inputRef.current?.click();
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            onFileSelect(file);
+            // Reset the input so the same file can be selected again
+            e.target.value = "";
+        }
+    };
+
     return (
         <>
             <button
                 className="group absolute left-3 bottom-2 w-10 h-10 outline-none"
-                onClick={() => setVisible(true)}
+                onClick={handleClick}
+                disabled={disabled}
+                type="button"
             >
                 <Icon
                     className="w-7 h-7 fill-[#7F8689] transition-colors group-hover:fill-primary-1 dark:fill-n-4"
                     name="plus-circle"
                 />
             </button>
-            <Modal
-                classWrap="max-w-[25.2rem] rounded-none bg-transparent"
-                classOverlay="bg-n-7/95 dark:bg-n-7/95"
-                classButtonClose="hidden"
-                visible={visible}
-                onClose={() => setVisible(false)}
-            >
-                <div className="relative p-3 bg-primary-1 rounded-[1.25rem]">
-                    <input className="absolute inset-0 opacity-0" type="file" />
-                    <div className="px-6 py-14 border-2 border-dashed border-n-1 rounded-xl text-center text-n-1">
-                        <div className="flex justify-center items-center w-16 h-16 mx-auto mb-6 bg-n-1 rounded-full">
-                            <Icon name="upload" />
-                        </div>
-                        <div className="h5">Upload to Brainwave</div>
-                        <div className="base2">
-                            You can add prompts after uploading.
-                        </div>
-                    </div>
-                </div>
-            </Modal>
+            <input
+                ref={inputRef}
+                className="hidden"
+                type="file"
+                accept={ACCEPTED_TYPES}
+                onChange={handleChange}
+            />
         </>
     );
 };

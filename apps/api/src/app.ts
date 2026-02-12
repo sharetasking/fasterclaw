@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastif
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import fastifyMultipart from "@fastify/multipart";
 import fastifyRawBody from "fastify-raw-body";
 
 import { corsPlugin, type CorsPluginOptions } from "./plugins/cors.js";
@@ -89,6 +90,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   await app.register(corsPlugin, options.cors ?? {});
   await app.register(cookiePlugin, options.cookie ?? {});
   await app.register(jwtPlugin, options.jwt ?? {});
+
+  // Register multipart plugin for file uploads
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10 MB max
+      files: 1, // 1 file at a time
+    },
+  });
 
   // Register raw body plugin for Stripe webhook signature verification
   await app.register(fastifyRawBody, {

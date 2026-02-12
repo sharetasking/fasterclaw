@@ -6,12 +6,17 @@
 
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
+import { writeFile, unlink, mkdir } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 import type {
   InstanceProvider,
   CreateInstanceConfig,
   ProviderResult,
   ProviderInstanceData,
+  ChatMessageResult,
+  FileUploadResult,
 } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -332,5 +337,99 @@ export const dockerProvider: InstanceProvider = {
     await checkDockerAvailable();
     const state = await getContainerState(data.dockerContainerId);
     return mapDockerState(state);
+  },
+
+  async sendMessage(
+    data: ProviderInstanceData,
+    sessionId: string,
+    message: string,
+    timeoutSeconds = 120,
+  ): Promise<ChatMessageResult> {
+    if (data.dockerContainerId === null || data.dockerContainerId === undefined) {
+      throw new Error("Missing Docker container ID");
+    }
+
+    const args = [
+      "exec",
+      data.dockerContainerId,
+      "node",
+      "openclaw.mjs",
+      "agent",
+      "--local",
+      "--session-id",
+      sessionId,
+      "--message",
+      message,
+      "--json",
+      "--timeout",
+      String(timeoutSeconds),
+    ];
+
+    let stdout: string;
+    try {
+      const result = await execFileAsync("docker", args, {
+        timeout: (timeoutSeconds + 10) * 1000,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      stdout = result.stdout;
+    } catch (error: unknown) {
+      // execFileAsync throws if the process exits non-zero OR writes to stderr.
+      // The agent often writes diagnostic warnings to stderr but still produces
+      // a valid JSON response on stdout.
+      const execError = error as { stdout?: string };
+      if (execError.stdout?.includes('"payloads"') === true) {
+        stdout = execError.stdout;
+      } else {
+        throw error;
+      }
+    }
+
+    interface AgentResponse {
+      payloads: { text: string; mediaUrl: string | null }[];
+    }
+    const parsed = JSON.parse(stdout) as AgentResponse;
+
+    if (parsed.payloads.length === 0) {
+      return { response: "No response from assistant" };
+    }
+
+    return { response: parsed.payloads.map((p) => p.text).join("\n") };
+  },
+
+  async uploadFile(
+    data: ProviderInstanceData,
+    fileBuffer: Buffer,
+    fileName: string,
+  ): Promise<FileUploadResult> {
+    if (data.dockerContainerId === null || data.dockerContainerId === undefined) {
+      throw new Error("Missing Docker container ID");
+    }
+
+    // Ensure the uploads directory exists inside the container
+    await dockerExec(["exec", data.dockerContainerId, "mkdir", "-p", "/tmp/uploads"]);
+
+    // Preserve the file extension
+    const lastDot = fileName.lastIndexOf(".");
+    const ext = lastDot !== -1 ? fileName.slice(lastDot) : "";
+    const safeFilename = `${randomUUID()}${ext}`;
+    const containerPath = `/tmp/uploads/${safeFilename}`;
+
+    // Write buffer to a temp file on the host, then docker cp it in
+    const tempDir = join(tmpdir(), "fasterclaw-uploads");
+    await mkdir(tempDir, { recursive: true });
+    const tempFile = join(tempDir, randomUUID());
+    await writeFile(tempFile, fileBuffer);
+
+    try {
+      await execFileAsync("docker", [
+        "cp",
+        tempFile,
+        `${data.dockerContainerId}:${containerPath}`,
+      ]);
+    } finally {
+      await unlink(tempFile).catch((_err: unknown) => { /* ignore cleanup errors */ });
+    }
+
+    return { filePath: containerPath };
   },
 };

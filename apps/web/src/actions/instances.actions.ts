@@ -233,7 +233,8 @@ export async function getDefaultInstance(): Promise<Instance | null> {
  */
 export async function sendChatMessage(
   instanceId: string,
-  message: string
+  message: string,
+  filePath?: string
 ): Promise<ActionResult<{ response: string }>> {
   try {
     const token = await getAuthToken();
@@ -248,7 +249,7 @@ export async function sendChatMessage(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, filePath }),
     });
 
     if (!response.ok) {
@@ -261,5 +262,45 @@ export async function sendChatMessage(
   } catch (error) {
     console.error("Send chat message error:", error);
     return { success: false, error: "Failed to send message" };
+  }
+}
+
+/**
+ * Upload a file to an OpenClaw instance for use in chat
+ */
+export async function uploadChatFile(
+  instanceId: string,
+  formData: FormData
+): Promise<ActionResult<{ filePath: string; fileName: string; fileSize: number; mimeType: string }>> {
+  try {
+    const token = await getAuthToken();
+    if (token == null || token === "") {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    const apiUrl = process.env.API_URL ?? "http://localhost:3001";
+    const response = await fetch(`${apiUrl}/instances/${instanceId}/chat/upload`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as { error?: string };
+      return { success: false, error: errorData.error ?? "Failed to upload file" };
+    }
+
+    const data = (await response.json()) as {
+      filePath: string;
+      fileName: string;
+      fileSize: number;
+      mimeType: string;
+    };
+    return { success: true, data };
+  } catch (error) {
+    console.error("Upload chat file error:", error);
+    return { success: false, error: "Failed to upload file" };
   }
 }
