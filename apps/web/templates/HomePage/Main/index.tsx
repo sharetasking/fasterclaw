@@ -302,6 +302,7 @@ const Main = ({ instance: initialInstance }: MainProps) => {
                 onSend={handleSend}
                 onFileSelect={handleFileSelect}
                 onFileRemove={handleFileRemove}
+                onTranscript={(text: string) => setMessage(text)}
                 attachedFile={attachedFile}
                 isUploading={isUploading}
                 disabled={isLoading || !isReady}
