@@ -76,16 +76,14 @@ export function authRoutes(fastify: FastifyInstance): void {
       const accessToken = generateToken(user);
 
       // Auto-create default quickStart instance (bypasses subscription check)
-      try {
-        void provisionInstance({
-          userId: user.id,
-          name: "My Assistant",
-          quickStart: true,
-          isDefault: true,
-        });
-      } catch (error) {
+      provisionInstance({
+        userId: user.id,
+        name: "My Assistant",
+        quickStart: true,
+        isDefault: true,
+      }).catch((error: unknown) => {
         app.log.error(error, "Failed to auto-create default instance");
-      }
+      });
 
       return reply.code(201).send({
         accessToken,

@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import Message from "@/components/Message";
 import Menu from "@/components/Menu";
 import Question from "@/components/Question";
 import Answer from "@/components/Answer";
 import { sendChatMessage, uploadChatFile, getInstance } from "@/actions/instances.actions";
+import type { Instance } from "@fasterclaw/api-client";
 import { navigation } from "@/constants/navigation";
 import toast from "react-hot-toast";
 
@@ -30,9 +31,9 @@ interface ChatMessage {
     imagePreview?: string;
 }
 
-type MainProps = {
-    instance: any | null;
-};
+interface MainProps {
+    instance: Instance | null;
+}
 
 const Main = ({ instance: initialInstance }: MainProps) => {
     const [message, setMessage] = useState<string>("");
@@ -298,11 +299,11 @@ const Main = ({ instance: initialInstance }: MainProps) => {
             </div>
             <Message
                 value={message}
-                onChange={(e: any) => setMessage(e.target.value)}
-                onSend={handleSend}
-                onFileSelect={handleFileSelect}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { setMessage(e.target.value); }}
+                onSend={() => { void handleSend(); }}
+                onFileSelect={(file: File) => { void handleFileSelect(file); }}
                 onFileRemove={handleFileRemove}
-                onTranscript={(text: string) => setMessage(text)}
+                onTranscript={(text: string) => { setMessage(text); }}
                 attachedFile={attachedFile}
                 isUploading={isUploading}
                 disabled={isLoading || !isReady}

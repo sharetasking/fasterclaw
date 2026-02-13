@@ -37,3 +37,12 @@ packages/db/prisma/*.db-journal
 
 # OpenClaw (cloned separately)
 packages/openclaw
+
+# OpenClaw local runtime state (contains secrets/keys)
+.openclaw-local/
+
+# Claude Code local settings (machine-specific, may contain secrets)
+.claude/settings.local.json
+
+# Windows null device artifact
+nul

@@ -75,7 +75,7 @@ export function InstanceChat({ instanceId, instanceName, isRunning }: InstanceCh
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
@@ -150,7 +150,7 @@ export function InstanceChat({ instanceId, instanceName, isRunning }: InstanceCh
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setInput(e.target.value);
               }}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               placeholder="Type your message..."
               disabled={isLoading}
               className="flex-1"

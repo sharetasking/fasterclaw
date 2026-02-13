@@ -2,10 +2,11 @@
 
 import Layout from "@/components/Layout";
 import Main from "./Main";
+import type { Instance } from "@fasterclaw/api-client";
 
-type HomePageProps = {
-    instance?: any | null;
-};
+interface HomePageProps {
+    instance?: Instance | null;
+}
 
 const HomePage = ({ instance }: HomePageProps) => {
     return (
