@@ -193,9 +193,12 @@ export const flyProvider: InstanceProvider = {
     // Ensure the uploads directory exists
     await execOnMachine(flyAppName, flyMachineId, ["mkdir", "-p", "/tmp/uploads"]);
 
-    // Preserve the file extension
+    // Preserve the file extension, sanitised to prevent command injection.
+    // Only allow a leading dot followed by alphanumeric characters and dots.
     const lastDot = fileName.lastIndexOf(".");
-    const ext = lastDot !== -1 ? fileName.slice(lastDot) : "";
+    const rawExt = lastDot !== -1 ? fileName.slice(lastDot) : "";
+    const sanitised = rawExt.replace(/[^A-Za-z0-9.]/g, "");
+    const ext = sanitised.length > 1 && sanitised.startsWith(".") ? sanitised : "";
     const safeFilename = `${randomUUID()}${ext}`;
     const containerPath = `/tmp/uploads/${safeFilename}`;
 
