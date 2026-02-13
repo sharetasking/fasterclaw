@@ -19,3 +19,8 @@
 // ============================================================================
 
 export * from "./generated/index";
+
+// Export client creation utilities
+export { createClient } from "./generated/client/client.gen";
+export { createConfig } from "./generated/client/utils.gen";
+export type { Client, Config } from "./generated/client/types.gen";

@@ -14,7 +14,7 @@
  */
 
 import { cookies } from "next/headers";
-import { createClient, createConfig, type Client } from "@hey-api/client-fetch";
+import { createClient, createConfig, type Client } from "@fasterclaw/api-client";
 
 // Server-side only - no NEXT_PUBLIC_ needed since we only call from server actions
 const API_BASE_URL = process.env.API_URL ?? "http://localhost:3001";

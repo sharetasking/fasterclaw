@@ -4,6 +4,7 @@
  */
 
 export interface CreateInstanceConfig {
+  instanceId: string; // Database ID for proxy lookups
   name: string;
   userId: string;
   telegramBotToken: string;
@@ -11,6 +12,9 @@ export interface CreateInstanceConfig {
   aiApiKey: string;
   aiModel: string;
   region?: string;
+  // Skills and Integrations
+  skills?: Array<{ slug: string; content: string }>;
+  integrations?: Record<string, string>; // provider -> decrypted token
 }
 
 export interface ProviderResult {

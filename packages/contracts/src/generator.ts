@@ -32,6 +32,27 @@ import {
   SubscriptionResponseSchema,
   InvoiceListSchema,
   WebhookResponseSchema,
+  // Skills
+  SkillSchema,
+  SkillListSchema,
+  UserSkillListSchema,
+  InstanceSkillListSchema,
+  AddUserSkillRequestSchema,
+  EnableInstanceSkillRequestSchema,
+  // Integrations
+  IntegrationSchema,
+  IntegrationListSchema,
+  UserIntegrationListSchema,
+  InstanceIntegrationListSchema,
+  InitiateOAuthRequestSchema,
+  OAuthUrlResponseSchema,
+  EnableInstanceIntegrationRequestSchema,
+  // MCP
+  McpServerSchema,
+  McpServerListSchema,
+  ProxyV2RequestSchema,
+  ProxyV2ResponseSchema,
+  ProxyActionsListSchema,
 } from "@fasterclaw/shared";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -802,6 +823,752 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// ============================================================================
+// SKILLS ROUTES
+// ============================================================================
+
+// List all available skills (marketplace)
+registry.registerPath({
+  method: "get",
+  path: "/skills",
+  tags: ["Skills"],
+  summary: "List all available skills",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "List of all skills",
+      content: {
+        "application/json": {
+          schema: SkillListSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Get skill details by ID
+registry.registerPath({
+  method: "get",
+  path: "/skills/{skillId}",
+  tags: ["Skills"],
+  summary: "Get skill details including full markdown content",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      skillId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Skill details",
+      content: {
+        "application/json": {
+          schema: SkillSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Skill not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// List user's added skills
+registry.registerPath({
+  method: "get",
+  path: "/skills/user",
+  tags: ["Skills"],
+  summary: "List skills added to user's library",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "List of user's skills",
+      content: {
+        "application/json": {
+          schema: UserSkillListSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Add skill to user's library
+registry.registerPath({
+  method: "post",
+  path: "/skills/user",
+  tags: ["Skills"],
+  summary: "Add a skill to user's library",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: AddUserSkillRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Skill added to user's library",
+      content: {
+        "application/json": {
+          schema: UserSkillListSchema.element,
+        },
+      },
+    },
+    400: {
+      description: "Bad request",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Skill not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    409: {
+      description: "Skill already in user's library",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Remove skill from user's library
+registry.registerPath({
+  method: "delete",
+  path: "/skills/user/{skillId}",
+  tags: ["Skills"],
+  summary: "Remove a skill from user's library",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      skillId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Skill removed from user's library",
+      content: {
+        "application/json": {
+          schema: ApiSuccessSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Skill not found in user's library",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// List skills enabled for an instance
+registry.registerPath({
+  method: "get",
+  path: "/instances/{instanceId}/skills",
+  tags: ["Skills"],
+  summary: "List skills enabled for an instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      instanceId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "List of instance skills",
+      content: {
+        "application/json": {
+          schema: InstanceSkillListSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Enable skill for an instance
+registry.registerPath({
+  method: "post",
+  path: "/instances/{instanceId}/skills",
+  tags: ["Skills"],
+  summary: "Enable a skill for an instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      instanceId: z.string().cuid(),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: EnableInstanceSkillRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Skill enabled for instance",
+      content: {
+        "application/json": {
+          schema: InstanceSkillListSchema.element,
+        },
+      },
+    },
+    400: {
+      description: "Bad request",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance or skill not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    409: {
+      description: "Skill already enabled for instance",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Disable skill for an instance
+registry.registerPath({
+  method: "delete",
+  path: "/instances/{instanceId}/skills/{skillId}",
+  tags: ["Skills"],
+  summary: "Disable a skill for an instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      instanceId: z.string().cuid(),
+      skillId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Skill disabled for instance",
+      content: {
+        "application/json": {
+          schema: ApiSuccessSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance or skill not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// ============================================================================
+// INTEGRATIONS ROUTES
+// ============================================================================
+
+// List all available integrations
+registry.registerPath({
+  method: "get",
+  path: "/integrations",
+  tags: ["Integrations"],
+  summary: "List all available integrations",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "List of integrations",
+      content: {
+        "application/json": {
+          schema: IntegrationListSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Get user's connected integrations
+registry.registerPath({
+  method: "get",
+  path: "/integrations/user",
+  tags: ["Integrations"],
+  summary: "List user's connected integrations",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "List of user's integrations",
+      content: {
+        "application/json": {
+          schema: UserIntegrationListSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Initiate OAuth flow
+registry.registerPath({
+  method: "post",
+  path: "/integrations/oauth/initiate",
+  tags: ["Integrations"],
+  summary: "Initiate OAuth flow for an integration",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: InitiateOAuthRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "OAuth authorization URL",
+      content: {
+        "application/json": {
+          schema: OAuthUrlResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Integration not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Disconnect integration
+registry.registerPath({
+  method: "delete",
+  path: "/integrations/user/{integrationId}",
+  tags: ["Integrations"],
+  summary: "Disconnect an integration",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      integrationId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Integration disconnected",
+      content: {
+        "application/json": {
+          schema: ApiSuccessSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Integration not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// List integrations enabled for an instance
+registry.registerPath({
+  method: "get",
+  path: "/instances/{instanceId}/integrations",
+  tags: ["Integrations"],
+  summary: "List integrations enabled for an instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      instanceId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "List of instance integrations",
+      content: {
+        "application/json": {
+          schema: InstanceIntegrationListSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Enable integration for an instance
+registry.registerPath({
+  method: "post",
+  path: "/instances/{instanceId}/integrations",
+  tags: ["Integrations"],
+  summary: "Enable an integration for an instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      instanceId: z.string().cuid(),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: EnableInstanceIntegrationRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Integration enabled for instance",
+      content: {
+        "application/json": {
+          schema: InstanceIntegrationListSchema.element,
+        },
+      },
+    },
+    400: {
+      description: "Bad request",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance or integration not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    409: {
+      description: "Integration already enabled for instance",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// Disable integration for an instance
+registry.registerPath({
+  method: "delete",
+  path: "/instances/{instanceId}/integrations/{integrationId}",
+  tags: ["Integrations"],
+  summary: "Disable an integration for an instance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({
+      instanceId: z.string().cuid(),
+      integrationId: z.string().cuid(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Integration disabled for instance",
+      content: {
+        "application/json": {
+          schema: ApiSuccessSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+    404: {
+      description: "Instance or integration not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// ============================================================================
+// MCP SERVERS ROUTES
+// ============================================================================
+
+registry.registerPath({
+  method: "get",
+  path: "/mcp-servers",
+  tags: ["MCP Servers"],
+  summary: "List all available MCP servers",
+  responses: {
+    200: {
+      description: "List of MCP servers",
+      content: {
+        "application/json": {
+          schema: McpServerListSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/mcp-servers/{provider}",
+  tags: ["MCP Servers"],
+  summary: "Get MCP server by provider",
+  request: {
+    params: z.object({
+      provider: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "MCP server details",
+      content: {
+        "application/json": {
+          schema: McpServerSchema,
+        },
+      },
+    },
+    404: {
+      description: "MCP server not found",
+      content: {
+        "application/json": {
+          schema: ApiErrorSchema,
+        },
+      },
+    },
+  },
+});
+
+// ============================================================================
+// PROXY V2 ROUTES
+// ============================================================================
+
+registry.registerPath({
+  method: "get",
+  path: "/proxy/v2/actions",
+  tags: ["Proxy V2"],
+  summary: "List available proxy actions",
+  responses: {
+    200: {
+      description: "List of available actions",
+      content: {
+        "application/json": {
+          schema: ProxyActionsListSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/proxy/v2/{provider}/{action}",
+  tags: ["Proxy V2"],
+  summary: "Execute a proxy action",
+  request: {
+    params: z.object({
+      provider: z.enum(["github", "slack", "google"]),
+      action: z.string(),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: ProxyV2RequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Action executed successfully",
+      content: {
+        "application/json": {
+          schema: ProxyV2ResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Bad request",
+      content: {
+        "application/json": {
+          schema: ProxyV2ResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Integration not found",
+      content: {
+        "application/json": {
+          schema: ProxyV2ResponseSchema,
         },
       },
     },

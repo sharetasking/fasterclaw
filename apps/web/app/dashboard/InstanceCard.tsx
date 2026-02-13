@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Instance } from "@fasterclaw/api-client";
 import Icon from "@/components/Icon";
+import Link from "next/link";
 import {
     startInstance,
     stopInstance,
@@ -201,6 +202,14 @@ const InstanceCard = ({ instance, onUpdate, onDelete }: InstanceCardProps) => {
                         <span>Processing...</span>
                     </button>
                 )}
+
+                <Link
+                    href={`/dashboard/instances/${instance.id}`}
+                    className="btn-stroke-light w-10 h-10 !p-0 flex items-center justify-center"
+                    title="Manage instance"
+                >
+                    <Icon className="fill-n-4" name="settings" />
+                </Link>
 
                 <button
                     className="btn-stroke-light w-10 h-10 !p-0"

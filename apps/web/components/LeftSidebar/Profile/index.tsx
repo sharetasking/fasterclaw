@@ -67,11 +67,11 @@ const Profile = ({ visible = false }: ProfileProps) => {
 
   // Determine plan name and button text
   const planName =
-    subscription?.plan !== undefined && subscription.plan !== ""
+    subscription?.plan !== undefined
       ? subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)
       : "Starter";
   const isPaid =
-    subscription?.plan !== undefined && subscription.plan !== "" && subscription.plan !== "starter";
+    subscription?.plan !== undefined && subscription.plan !== "starter";
   const buttonText = isPaid ? "Manage Plan" : "Upgrade to Pro";
 
   return (

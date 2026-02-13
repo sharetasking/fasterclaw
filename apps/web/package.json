@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
+    "dev:tunnel": "next dev --turbopack -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -15,7 +16,6 @@
     "@fasterclaw/api-client": "workspace:*",
     "@fasterclaw/shared": "workspace:*",
     "@fasterclaw/db": "workspace:*",
-    "@hey-api/client-fetch": "^0.8.1",
     "classnames": "^2.5.1",
     "@chakra-ui/next-js": "^2.2.0",
     "@chakra-ui/react": "^2.8.2",

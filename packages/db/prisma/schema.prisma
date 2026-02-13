@@ -8,38 +8,42 @@ datasource db {
 }
 
 model User {
-  id               String        @id @default(cuid())
-  email            String        @unique
+  id               String            @id @default(cuid())
+  email            String            @unique
   passwordHash     String
   name             String?
   stripeCustomerId String?
   subscription     Subscription?
   instances        Instance[]
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  userSkills       UserSkill[]
+  userIntegrations UserIntegration[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model Instance {
-  id                String   @id @default(cuid())
-  userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name              String
+  id                   String                  @id @default(cuid())
+  userId               String
+  user                 User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String
   // Provider: "fly" (Fly.io) or "docker" (local Docker)
-  provider          String   @default("fly")
+  provider             String                  @default("fly")
   // Fly.io specific fields
-  flyMachineId      String?  @unique
-  flyAppName        String?  @unique
+  flyMachineId         String?                 @unique
+  flyAppName           String?                 @unique
   // Docker specific fields
-  dockerContainerId String?  @unique
-  dockerPort        Int?
+  dockerContainerId    String?                 @unique
+  dockerPort           Int?
   // Common fields
-  ipAddress         String?
-  status            String   @default("pending") // pending, provisioning, running, stopped, error
-  telegramBotToken  String?
-  aiModel           String   @default("claude-sonnet-4-0")
-  region            String   @default("iad")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  ipAddress                    String?
+  status                       String                  @default("pending") // pending, provisioning, running, stopped, error
+  encryptedTelegramBotToken    String?                 @db.Text // Encrypted with AES-256-GCM
+  aiModel                      String                  @default("claude-sonnet-4-0")
+  region               String                  @default("iad")
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  instanceSkills       InstanceSkill[]
+  instanceIntegrations InstanceIntegration[]
 
   @@index([userId])
 }
@@ -59,4 +63,127 @@ model Subscription {
   cancelAtPeriodEnd    Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+// Skills Registry - Curated list of available skills
+model Skill {
+  id              String          @id @default(cuid())
+  slug            String          @unique
+  name            String
+  description     String
+  category        String          // "productivity", "development", "communication"
+  iconUrl         String?
+  markdownContent String          @db.Text
+  requiresBins    String[]
+  requiresEnvVars String[]
+  compatibleOs    String[]
+  isOfficial      Boolean         @default(true)
+  version         String          @default("1.0.0")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  userSkills      UserSkill[]
+  instanceSkills  InstanceSkill[]
+
+  @@index([category])
+}
+
+// User has added this skill to their library
+model UserSkill {
+  id      String   @id @default(cuid())
+  userId  String
+  skillId String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill   Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  addedAt DateTime @default(now())
+
+  @@unique([userId, skillId])
+  @@index([userId])
+}
+
+// Skill is enabled for this specific instance
+model InstanceSkill {
+  id         String   @id @default(cuid())
+  instanceId String
+  skillId    String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  skill      Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  enabledAt  DateTime @default(now())
+
+  @@unique([instanceId, skillId])
+  @@index([instanceId])
+}
+
+// MCP Server Registry - Available Model Context Protocol servers
+model McpServer {
+  id               String        @id @default(cuid())
+  provider         String        @unique // "github", "slack", "google-drive"
+  name             String
+  description      String
+  npmPackage       String        // "@modelcontextprotocol/server-github"
+  version          String        @default("latest")
+  requiredEnvVars  String[]
+  capabilities     String[]
+  isOfficial       Boolean       @default(true)
+  documentationUrl String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  integrations     Integration[]
+
+  @@index([provider])
+}
+
+// Integration providers (OAuth services)
+model Integration {
+  id               String            @id @default(cuid())
+  slug             String            @unique
+  name             String
+  description      String
+  category         String            // "email", "communication", "development"
+  iconUrl          String?
+  provider         String            // "google", "slack", "github"
+  authType         String            // "oauth2"
+  oauthScopes      String[]
+  isOfficial       Boolean           @default(true)
+  // MCP configuration
+  preferredMethod  String            @default("mcp") // "mcp", "cli", "proxy"
+  mcpServerId      String?
+  mcpServer        McpServer?        @relation(fields: [mcpServerId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  userIntegrations UserIntegration[]
+
+  @@index([provider])
+  @@index([mcpServerId])
+}
+
+// User's connected OAuth accounts (encrypted tokens)
+model UserIntegration {
+  id                    String                  @id @default(cuid())
+  userId                String
+  integrationId         String
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integration           Integration             @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  encryptedAccessToken  String                  @db.Text
+  encryptedRefreshToken String?                 @db.Text
+  tokenExpiresAt        DateTime?
+  accountIdentifier     String?                 // Email/username for display
+  connectedAt           DateTime                @default(now())
+  lastRefreshedAt       DateTime?
+  instanceIntegrations  InstanceIntegration[]
+
+  @@unique([userId, integrationId])
+  @@index([userId])
+}
+
+// Integration enabled for specific instance
+model InstanceIntegration {
+  id                String          @id @default(cuid())
+  instanceId        String
+  userIntegrationId String
+  instance          Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  userIntegration   UserIntegration @relation(fields: [userIntegrationId], references: [id], onDelete: Cascade)
+  enabledAt         DateTime        @default(now())
+
+  @@unique([instanceId, userIntegrationId])
+  @@index([instanceId])
 }
