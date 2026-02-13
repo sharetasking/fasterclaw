@@ -47,6 +47,8 @@ const LeftSidebar = ({
         }
     };
 
+    const isDev = process.env.NODE_ENV === "development";
+
     const navigation = [
         {
             title: "Chats",
@@ -54,12 +56,17 @@ const LeftSidebar = ({
             color: "fill-accent-2",
             url: "/",
         },
-        {
-            title: "Search",
-            icon: "search",
-            color: "fill-primary-2",
-            onClick: () => setVisibleSearch(true),
-        },
+        ...(isDev
+            ? [
+                  {
+                      title: "Search",
+                      icon: "search",
+                      color: "fill-primary-2",
+                      onClick: () => setVisibleSearch(true),
+                      devOnly: true,
+                  },
+              ]
+            : []),
         {
             title: "Dashboard",
             icon: "container",
@@ -83,6 +90,7 @@ const LeftSidebar = ({
             icon: "info-circle",
             color: "fill-primary-2",
             url: "/updates-and-faq",
+            devOnly: true,
         },
         {
             title: "Settings",
@@ -126,12 +134,18 @@ const LeftSidebar = ({
                 </div>
                 <div className="grow overflow-y-auto scroll-smooth scrollbar-none">
                     <Navigation visible={value} items={navigation} />
-                    <div
-                        className={`my-4 h-0.25 bg-n-6 ${
-                            value ? "-mx-4 md:mx-0" : "-mx-2 md:mx-0"
-                        }`}
-                    ></div>
-                    <ChatList visible={value} items={chatList} />
+                    {isDev && (
+                        <>
+                            <div
+                                className={`my-4 h-0.25 bg-n-6 ${
+                                    value
+                                        ? "-mx-4 md:mx-0"
+                                        : "-mx-2 md:mx-0"
+                                }`}
+                            ></div>
+                            <ChatList visible={value} items={chatList} />
+                        </>
+                    )}
                 </div>
                 <div className="absolute left-0 bottom-0 right-0 pb-6 px-4 bg-n-7 before:absolute before:left-0 before:right-0 before:bottom-full before:h-10 before:bg-gradient-to-t before:from-[#131617] before:to-[rgba(19,22,23,0)] before:pointer-events-none md:px-3">
                     <Profile visible={value} />
