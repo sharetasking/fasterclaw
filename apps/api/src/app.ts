@@ -10,8 +10,14 @@ import { jwtPlugin, type JwtPluginOptions } from "./plugins/jwt.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
 import { googleAuthRoutes } from "./routes/google-auth.js";
+import { slackAuthRoutes } from "./routes/slack-auth.js";
 import { instanceRoutes } from "./routes/instances.js";
 import { billingRoutes } from "./routes/billing.js";
+import { skillsRoutes } from "./routes/skills.js";
+import { integrationsRoutes } from "./routes/integrations.js";
+import { proxyRoutes } from "./routes/proxy.js";
+import { mcpServersRoutes } from "./routes/mcp-servers.js";
+import { proxyV2Routes } from "./routes/proxy-v2.js";
 
 export interface CreateAppOptions {
   /** Fastify server options */
@@ -108,8 +114,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   ) {
     await app.register(googleAuthRoutes);
   }
+  // Slack OAuth for "Sign in with Slack"
+  if (
+    process.env.SLACK_OAUTH_CLIENT_ID !== undefined &&
+    process.env.SLACK_OAUTH_CLIENT_ID !== "" &&
+    process.env.SLACK_OAUTH_CLIENT_SECRET !== undefined &&
+    process.env.SLACK_OAUTH_CLIENT_SECRET !== ""
+  ) {
+    await app.register(slackAuthRoutes);
+  }
   await app.register(instanceRoutes);
   await app.register(billingRoutes);
+  await app.register(skillsRoutes);
+  await app.register(integrationsRoutes);
+  await app.register(proxyRoutes);
+  await app.register(mcpServersRoutes);
+  await app.register(proxyV2Routes);
 
   return app;
 }

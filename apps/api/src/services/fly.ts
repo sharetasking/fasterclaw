@@ -42,6 +42,9 @@ interface MachineConfig {
       internal_port: number;
     }[];
     env?: Record<string, string>;
+    init?: {
+      cmd?: string[];
+    };
   };
 }
 

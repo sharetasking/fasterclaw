@@ -38,7 +38,10 @@ const Form = ({}: FormProps) => {
                                 </Tab>
                             ))}
                         </Tab.List>
-                        <button className="btn-stroke-light btn-large w-full mb-3">
+                        <button
+                            className="btn-stroke-light btn-large w-full mb-3"
+                            onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
+                        >
                             <Image
                                 src="/images/google.svg"
                                 width={24}
@@ -46,6 +49,18 @@ const Form = ({}: FormProps) => {
                                 alt=""
                             />
                             <span className="ml-4">Continue with Google</span>
+                        </button>
+                        <button
+                            className="btn-stroke-light btn-large w-full mb-3"
+                            onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/slack`}
+                        >
+                            <Image
+                                src="/images/slack.svg"
+                                width={24}
+                                height={24}
+                                alt=""
+                            />
+                            <span className="ml-4">Continue with Slack</span>
                         </button>
                         <button className="btn-stroke-light btn-large w-full">
                             <Image

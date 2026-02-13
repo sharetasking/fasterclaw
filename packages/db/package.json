@@ -25,7 +25,10 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:skills": "tsx prisma/seed-skills.ts",
+    "seed:integrations": "tsx prisma/seed-integrations.ts",
+    "seed": "npm run seed:skills && npm run seed:integrations"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0"
@@ -35,6 +38,7 @@
     "eslint": "^9.18.0",
     "globals": "^15.14.0",
     "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }

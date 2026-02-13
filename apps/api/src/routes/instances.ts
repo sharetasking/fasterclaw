@@ -17,6 +17,7 @@ import {
   ApiErrorSchema,
   ApiSuccessSchema,
 } from "@fasterclaw/shared";
+import { encryptToken, decryptToken } from "../services/encryption.js";
 
 /**
  * Extract a user-friendly error message from a caught error.
@@ -79,7 +80,7 @@ function getAPIKeyForProvider(provider: "openai" | "anthropic" | "google"): stri
 
 /**
  * Format an instance for API response with masked sensitive data.
- * Masks the telegramBotToken to prevent exposure in API responses.
+ * Decrypts and masks the telegramBotToken to prevent exposure in API responses.
  */
 function formatInstanceResponse(instance: {
   id: string;
@@ -93,17 +94,67 @@ function formatInstanceResponse(instance: {
   status: string;
   region: string;
   aiModel: string;
-  telegramBotToken: string | null;
+  encryptedTelegramBotToken: string | null;
   ipAddress: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
+  // Decrypt and mask the token for API response
+  let maskedToken: string | null = null;
+  if (instance.encryptedTelegramBotToken) {
+    try {
+      const decrypted = decryptToken(instance.encryptedTelegramBotToken);
+      maskedToken = maskToken(decrypted);
+    } catch {
+      maskedToken = null;
+    }
+  }
+
   return {
     ...instance,
-    telegramBotToken: maskToken(instance.telegramBotToken),
+    telegramBotToken: maskedToken,
+    encryptedTelegramBotToken: undefined, // Don't expose encrypted token in API
     createdAt: instance.createdAt.toISOString(),
     updatedAt: instance.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Fetch enabled skills for an instance
+ */
+async function getInstanceSkills(instanceId: string): Promise<Array<{ slug: string; content: string }>> {
+  const instanceSkills = await prisma.instanceSkill.findMany({
+    where: { instanceId },
+    include: { skill: true },
+  });
+
+  return instanceSkills.map((is) => ({
+    slug: is.skill.slug,
+    content: is.skill.markdownContent,
+  }));
+}
+
+/**
+ * Fetch ALL user integrations and decrypt tokens.
+ * This passes all connected integrations to OpenClaw regardless of enabled state.
+ * Users can then choose which ones to use without recreating the instance.
+ */
+async function getInstanceIntegrations(userId: string): Promise<Record<string, string>> {
+  const userIntegrations = await prisma.userIntegration.findMany({
+    where: { userId },
+    include: {
+      integration: true,
+    },
+  });
+
+  const integrations: Record<string, string> = {};
+
+  for (const ui of userIntegrations) {
+    const token = decryptToken(ui.encryptedAccessToken);
+    integrations[ui.integration.provider] = token;
+  }
+
+  return integrations;
 }
 
 export function instanceRoutes(fastify: FastifyInstance): void {
@@ -216,12 +267,15 @@ export function instanceRoutes(fastify: FastifyInstance): void {
       const provider = getProvider();
 
       try {
+        // Encrypt sensitive data before storing
+        const encryptedTelegramBotToken = encryptToken(telegramBotToken);
+
         // Create instance record first
         const instance = await prisma.instance.create({
           data: {
             userId,
             name,
-            telegramBotToken,
+            encryptedTelegramBotToken,
             provider: providerType,
             region,
             aiModel,
@@ -242,15 +296,29 @@ export function instanceRoutes(fastify: FastifyInstance): void {
               data: { status: "PROVISIONING" },
             });
 
+            // Fetch enabled skills and integrations for this instance
+            const skills = await getInstanceSkills(instance.id);
+            // Pass ALL user integrations to OpenClaw (not just enabled ones)
+            // This allows users to enable/disable without recreating the instance
+            const integrations = await getInstanceIntegrations(userId);
+
+            // Decrypt Telegram bot token for use in container
+            const decryptedTelegramToken = instance.encryptedTelegramBotToken
+              ? decryptToken(instance.encryptedTelegramBotToken)
+              : "";
+
             // Create instance using the selected provider
             const result = await provider.createInstance({
+              instanceId: instance.id,
               name,
               userId,
-              telegramBotToken,
+              telegramBotToken: decryptedTelegramToken,
               aiProvider,
               aiApiKey: apiKey,
               aiModel,
               region,
+              skills,
+              integrations,
             });
 
             // Update instance with provider-specific data
@@ -597,9 +665,12 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         return reply.code(400).send({ error: "Only failed instances can be retried" });
       }
 
-      if (!instance.telegramBotToken) {
+      if (!instance.encryptedTelegramBotToken) {
         return reply.code(400).send({ error: "Instance is missing Telegram bot token" });
       }
+
+      // Decrypt telegram token for use
+      const telegramBotToken = decryptToken(instance.encryptedTelegramBotToken);
 
       // Use current provider from env (allows switching providers on retry)
       const providerType = getProviderType();
@@ -627,19 +698,26 @@ export function instanceRoutes(fastify: FastifyInstance): void {
           const aiProvider = getAIProvider(aiModel);
           const apiKey = getAPIKeyForProvider(aiProvider);
 
+          // Fetch skills and integrations for retry
+          const skills = await getInstanceSkills(instance.id);
+          const integrations = await getInstanceIntegrations(userId);
+
           await prisma.instance.update({
             where: { id: instance.id },
             data: { status: "PROVISIONING" },
           });
 
           const result = await provider.createInstance({
+            instanceId: instance.id,
             name: instance.name,
             userId,
-            telegramBotToken: instance.telegramBotToken!, // Validated above before async IIFE
+            telegramBotToken, // Decrypted above
             aiProvider,
             aiApiKey: apiKey,
             aiModel,
             region: instance.region,
+            skills,
+            integrations,
           });
 
           const updateData: Record<string, unknown> = {
