@@ -43,8 +43,8 @@ export const SubscriptionStatusSchema = z.enum([
 
 export const SubscriptionSchema = z
   .object({
-    id: z.string().cuid(),
-    userId: z.string().cuid(),
+    id: z.string(),
+    userId: z.string(),
     stripeCustomerId: z.string(),
     stripeSubscriptionId: z.string(),
     status: z.string(),

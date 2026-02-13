@@ -6,11 +6,12 @@
 export interface CreateInstanceConfig {
   name: string;
   userId: string;
-  telegramBotToken: string;
+  telegramBotToken?: string; // Optional for quick start mode
   aiProvider: "openai" | "anthropic" | "google";
   aiApiKey: string;
   aiModel: string;
   region?: string;
+  quickStart?: boolean; // If true, enables web channel instead of Telegram
 }
 
 export interface ProviderResult {
@@ -27,6 +28,15 @@ export interface ProviderInstanceData {
   dockerPort?: number | null;
 }
 
+export interface ChatMessageResult {
+  response: string;
+}
+
+export interface FileUploadResult {
+  /** Path where the file was stored on the instance */
+  filePath: string;
+}
+
 export interface InstanceProvider {
   readonly name: "fly" | "docker";
 
@@ -35,4 +45,19 @@ export interface InstanceProvider {
   stopInstance(data: ProviderInstanceData): Promise<void>;
   deleteInstance(data: ProviderInstanceData): Promise<void>;
   getInstanceStatus(data: ProviderInstanceData): Promise<string>;
+
+  /** Send a chat message to an OpenClaw instance and return the response text. */
+  sendMessage(
+    data: ProviderInstanceData,
+    sessionId: string,
+    message: string,
+    timeoutSeconds?: number,
+  ): Promise<ChatMessageResult>;
+
+  /** Upload a file to an OpenClaw instance. Returns the file path on the instance. */
+  uploadFile(
+    data: ProviderInstanceData,
+    fileBuffer: Buffer,
+    fileName: string,
+  ): Promise<FileUploadResult>;
 }

@@ -9,6 +9,7 @@ type NavigationType = {
     color: string;
     url?: string;
     onClick?: () => void;
+    devOnly?: boolean;
 };
 
 type NavigationProps = {
@@ -37,12 +38,11 @@ const Navigation = ({ visible, items }: NavigationProps) => {
                         {!visible && (
                             <div className="ml-5 flex items-center gap-2">
                                 {item.title}
-                                {item.title === "Updates & FAQ" &&
-                                    process.env.NODE_ENV === "development" && (
-                                        <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase border border-yellow-500 text-yellow-500 rounded">
-                                            dev
-                                        </span>
-                                    )}
+                                {item.devOnly && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase border border-yellow-500 text-yellow-500 rounded">
+                                        dev
+                                    </span>
+                                )}
                             </div>
                         )}
                     </Link>
@@ -55,7 +55,16 @@ const Navigation = ({ visible, items }: NavigationProps) => {
                         onClick={item.onClick}
                     >
                         <Icon className={item.color} name={item.icon} />
-                        {!visible && <div className="ml-5">{item.title}</div>}
+                        {!visible && (
+                            <div className="ml-5 flex items-center gap-2">
+                                {item.title}
+                                {item.devOnly && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase border border-yellow-500 text-yellow-500 rounded">
+                                        dev
+                                    </span>
+                                )}
+                            </div>
+                        )}
                         {item.title === "Search" && !visible && (
                             <div className="ml-auto px-2 rounded-md bg-n-4/50 caption1 font-semibold text-n-3">
                                 ⌘ F

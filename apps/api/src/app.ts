@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastif
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import fastifyMultipart from "@fastify/multipart";
 import fastifyRawBody from "fastify-raw-body";
 
 import { corsPlugin, type CorsPluginOptions } from "./plugins/cors.js";
@@ -12,6 +13,7 @@ import { authRoutes } from "./routes/auth.js";
 import { googleAuthRoutes } from "./routes/google-auth.js";
 import { instanceRoutes } from "./routes/instances.js";
 import { billingRoutes } from "./routes/billing.js";
+import { chatRoutes } from "./routes/chat.js";
 
 export interface CreateAppOptions {
   /** Fastify server options */
@@ -89,6 +91,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   await app.register(cookiePlugin, options.cookie ?? {});
   await app.register(jwtPlugin, options.jwt ?? {});
 
+  // Register multipart plugin for file uploads
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10 MB max
+      files: 1, // 1 file at a time
+    },
+  });
+
   // Register raw body plugin for Stripe webhook signature verification
   await app.register(fastifyRawBody, {
     field: "rawBody",
@@ -110,6 +120,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   }
   await app.register(instanceRoutes);
   await app.register(billingRoutes);
+  await app.register(chatRoutes);
 
   return app;
 }

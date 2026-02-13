@@ -9,6 +9,7 @@ import {
   type ProviderType,
 } from "../services/providers/index.js";
 import { FlyApiError } from "../services/fly.js";
+import { getAIProvider, getAPIKeyForProvider, provisionInstance } from "../services/instance-provisioner.js";
 import {
   CreateInstanceRequestSchema,
   UpdateInstanceRequestSchema,
@@ -40,43 +41,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-// Helper to determine AI provider from model name
-function getAIProvider(model: string): "openai" | "anthropic" | "google" {
-  if (model.startsWith("gpt-") || model.startsWith("o1-")) {
-    return "openai";
-  }
-  if (model.startsWith("claude-")) {
-    return "anthropic";
-  }
-  if (model.startsWith("gemini-")) {
-    return "google";
-  }
-  return "anthropic"; // default to anthropic for OpenClaw
-}
-
-// Helper to get the correct API key for the provider
-function getAPIKeyForProvider(provider: "openai" | "anthropic" | "google"): string {
-  const keys: Record<typeof provider, string | undefined> = {
-    openai: process.env.OPENAI_KEY,
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    google: process.env.GEMINI_API_KEY,
-  };
-
-  const envVarNames: Record<typeof provider, string> = {
-    openai: "OPENAI_KEY",
-    anthropic: "ANTHROPIC_API_KEY",
-    google: "GEMINI_API_KEY",
-  };
-
-  const key = keys[provider];
-  if (key === undefined || key === "") {
-    throw new Error(
-      `Missing API key for provider "${provider}". Set ${envVarNames[provider]} environment variable.`
-    );
-  }
-  return key;
-}
-
 /**
  * Format an instance for API response with masked sensitive data.
  * Masks the telegramBotToken to prevent exposure in API responses.
@@ -95,6 +59,7 @@ function formatInstanceResponse(instance: {
   aiModel: string;
   telegramBotToken: string | null;
   ipAddress: string | null;
+  isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -108,6 +73,69 @@ function formatInstanceResponse(instance: {
 
 export function instanceRoutes(fastify: FastifyInstance): void {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
+
+  // POST /instances/create-default - Create a default instance for the user (if none exists)
+  app.post(
+    "/instances/create-default",
+    {
+      schema: {
+        tags: ["Instances"],
+        summary: "Create a default quickStart instance if the user has none",
+        response: {
+          201: InstanceSchema,
+          200: InstanceSchema,
+          401: ApiErrorSchema,
+          500: ApiErrorSchema,
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [app.authenticate],
+    },
+    async (request, reply) => {
+      const userId = request.user.id;
+
+      // Check if user already has a default instance
+      const existing = await prisma.instance.findFirst({
+        where: { userId, isDefault: true, status: { not: "DELETED" } },
+      });
+
+      if (existing) {
+        return reply.send(formatInstanceResponse(existing));
+      }
+
+      // Check if user has any instance at all
+      const anyInstance = await prisma.instance.findFirst({
+        where: { userId, status: { not: "DELETED" } },
+      });
+
+      if (anyInstance) {
+        return reply.send(formatInstanceResponse(anyInstance));
+      }
+
+      // Create a new default instance
+      try {
+        const instanceId = await provisionInstance({
+          userId,
+          name: "My Assistant",
+          quickStart: true,
+          isDefault: true,
+        });
+
+        const instance = await prisma.instance.findUnique({
+          where: { id: instanceId },
+        });
+
+        if (!instance) {
+          return reply.code(500).send({ error: "Failed to create instance" });
+        }
+
+        return await reply.code(201).send(formatInstanceResponse(instance));
+      } catch (error) {
+        app.log.error(error, "Failed to create default instance");
+        return reply.code(500).send({ error: "Failed to create instance" });
+      }
+    }
+  );
 
   // POST /instances/validate-telegram-token - Validate a Telegram bot token
   app.post(
@@ -185,7 +213,21 @@ export function instanceRoutes(fastify: FastifyInstance): void {
     },
     async (request, reply) => {
       const userId = request.user.id;
-      const { name, telegramBotToken, region, aiModel } = request.body;
+      const { name, telegramBotToken, region, aiModel, quickStart } = request.body;
+
+      // Validate: quickStart mode doesn't need Telegram token
+      if (quickStart && telegramBotToken !== undefined) {
+        return reply.code(400).send({
+          error: "Quick start mode does not require a Telegram token",
+        });
+      }
+
+      // Validate: non-quickStart mode requires Telegram token
+      if (!quickStart && telegramBotToken === undefined) {
+        return reply.code(400).send({
+          error: "Telegram bot token is required for standard mode",
+        });
+      }
 
       // Check subscription status (Priority 1: Subscription Gating)
       const subscription = await prisma.subscription.findFirst({
@@ -198,11 +240,12 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         });
       }
 
-      // Check instance limit
+      // Check instance limit (exclude default free instance)
       const instanceCount = await prisma.instance.count({
         where: {
           userId,
           status: { notIn: ["DELETED", "FAILED"] },
+          isDefault: false,
         },
       });
 
@@ -221,7 +264,7 @@ export function instanceRoutes(fastify: FastifyInstance): void {
           data: {
             userId,
             name,
-            telegramBotToken,
+            ...(telegramBotToken !== undefined && { telegramBotToken }),
             provider: providerType,
             region,
             aiModel,
@@ -246,11 +289,12 @@ export function instanceRoutes(fastify: FastifyInstance): void {
             const result = await provider.createInstance({
               name,
               userId,
-              telegramBotToken,
+              telegramBotToken: telegramBotToken ?? undefined,
               aiProvider,
               aiApiKey: apiKey,
               aiModel,
               region,
+              quickStart,
             });
 
             // Update instance with provider-specific data
@@ -403,7 +447,11 @@ export function instanceRoutes(fastify: FastifyInstance): void {
 
       const updatedInstance = await prisma.instance.update({
         where: { id },
-        data: updates,
+        data: {
+          ...(updates.name !== undefined && { name: updates.name }),
+          ...(updates.telegramBotToken !== undefined && { telegramBotToken: updates.telegramBotToken }),
+          ...(updates.aiModel !== undefined && { aiModel: updates.aiModel }),
+        },
       });
 
       return reply.send(formatInstanceResponse(updatedInstance));
@@ -597,9 +645,11 @@ export function instanceRoutes(fastify: FastifyInstance): void {
         return reply.code(400).send({ error: "Only failed instances can be retried" });
       }
 
-      if (!instance.telegramBotToken) {
+      if (instance.telegramBotToken === null) {
         return reply.code(400).send({ error: "Instance is missing Telegram bot token" });
       }
+
+      const validatedToken = instance.telegramBotToken;
 
       // Use current provider from env (allows switching providers on retry)
       const providerType = getProviderType();
@@ -635,7 +685,7 @@ export function instanceRoutes(fastify: FastifyInstance): void {
           const result = await provider.createInstance({
             name: instance.name,
             userId,
-            telegramBotToken: instance.telegramBotToken!, // Validated above before async IIFE
+            telegramBotToken: validatedToken,
             aiProvider,
             aiApiKey: apiKey,
             aiModel,

@@ -2,11 +2,16 @@
 
 import Layout from "@/components/Layout";
 import Main from "./Main";
+import type { Instance } from "@fasterclaw/api-client";
 
-const HomePage = () => {
+interface HomePageProps {
+    instance?: Instance | null;
+}
+
+const HomePage = ({ instance }: HomePageProps) => {
     return (
         <Layout>
-            <Main />
+            <Main instance={instance ?? null} />
         </Layout>
     );
 };

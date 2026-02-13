@@ -43,6 +43,11 @@ const Menu = ({ buttons, value, setValue }: MenuProps) => {
                     name={button.icon}
                 />
                 {button.title}
+                {button.devOnly && (
+                    <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold uppercase border border-yellow-500 text-yellow-500 rounded">
+                        dev
+                    </span>
+                )}
             </button>
         </div>
     ));
