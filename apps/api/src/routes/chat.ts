@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { prisma } from "@fasterclaw/db";
@@ -8,11 +8,7 @@ import { getProviderByType, type ProviderType } from "../services/providers/inde
  * Validate the instance for chat: must exist, be owned by user, and RUNNING.
  * Returns the instance or sends an error reply and returns null.
  */
-async function validateChatInstance(
-  userId: string,
-  instanceId: string,
-  reply: any,
-) {
+async function validateChatInstance(userId: string, instanceId: string, reply: FastifyReply) {
   const instance = await prisma.instance.findFirst({
     where: { id: instanceId, userId },
   });
@@ -80,16 +76,19 @@ export function chatRoutes(fastify: FastifyInstance): void {
       const { message, filePath } = request.body;
 
       const instance = await validateChatInstance(userId, id, reply);
-      if (instance === null) return;
+      if (instance === null) {
+        return;
+      }
 
       try {
         const provider = getProviderByType(instance.provider as ProviderType);
         const sessionId = `web-${userId}-${id}`;
 
         // If a file was uploaded, prepend the file path info to the message
-        const fullMessage = filePath
-          ? `[Attached file: ${filePath}]\n\n${message}`
-          : message;
+        const fullMessage =
+          filePath != null && filePath !== ""
+            ? `[Attached file: ${filePath}]\n\n${message}`
+            : message;
 
         const result = await provider.sendMessage(
           {
@@ -99,18 +98,35 @@ export function chatRoutes(fastify: FastifyInstance): void {
             dockerPort: instance.dockerPort,
           },
           sessionId,
-          fullMessage,
+          fullMessage
         );
 
-        return await reply.send({ response: result.response });
+        reply.send({ response: result.response });
       } catch (error) {
         app.log.error(error, `Failed to send chat message to instance ${id}`);
-        return reply.code(500).send({
+        reply.code(500).send({
           error: "Failed to communicate with OpenClaw instance",
         });
       }
     }
   );
+
+  // Allowed MIME types for file uploads
+  const ACCEPTED_MIME_TYPES = new Set([
+    "text/plain",
+    "text/csv",
+    "text/markdown",
+    "application/json",
+    "application/pdf",
+    "application/xml",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "application/zip",
+    "application/gzip",
+  ]);
 
   // POST /instances/:id/chat/upload - Upload a file to the instance
   app.post(
@@ -122,6 +138,29 @@ export function chatRoutes(fastify: FastifyInstance): void {
         params: z.object({
           id: z.string(),
         }),
+        response: {
+          200: z.object({
+            filePath: z.string(),
+            fileName: z.string(),
+            fileSize: z.number(),
+            mimeType: z.string(),
+          }),
+          400: z.object({
+            error: z.string(),
+          }),
+          401: z.object({
+            error: z.string(),
+          }),
+          404: z.object({
+            error: z.string(),
+          }),
+          415: z.object({
+            error: z.string(),
+          }),
+          500: z.object({
+            error: z.string(),
+          }),
+        },
         security: [{ bearerAuth: [] }],
       },
       preHandler: [app.authenticate],
@@ -131,23 +170,34 @@ export function chatRoutes(fastify: FastifyInstance): void {
       const { id } = request.params as { id: string };
 
       const instance = await validateChatInstance(userId, id, reply);
-      if (instance === null) return;
+      if (instance === null) {
+        return;
+      }
 
       try {
         const file = await request.file();
         if (!file) {
-          return reply.code(400).send({ error: "No file uploaded" });
+          reply.code(400).send({ error: "No file uploaded" });
+          return;
+        }
+
+        if (!ACCEPTED_MIME_TYPES.has(file.mimetype)) {
+          reply.code(415).send({
+            error: `Unsupported file type: ${file.mimetype}`,
+          });
+          return;
         }
 
         // Read the file into a buffer
         const chunks: Buffer[] = [];
         for await (const chunk of file.file) {
-          chunks.push(chunk);
+          chunks.push(chunk as Buffer);
         }
         const fileBuffer = Buffer.concat(chunks);
 
         if (fileBuffer.length === 0) {
-          return reply.code(400).send({ error: "Empty file" });
+          reply.code(400).send({ error: "Empty file" });
+          return;
         }
 
         const provider = getProviderByType(instance.provider as ProviderType);
@@ -159,10 +209,10 @@ export function chatRoutes(fastify: FastifyInstance): void {
             dockerPort: instance.dockerPort,
           },
           fileBuffer,
-          file.filename,
+          file.filename
         );
 
-        return await reply.send({
+        reply.send({
           filePath: result.filePath,
           fileName: file.filename,
           fileSize: fileBuffer.length,
@@ -170,7 +220,7 @@ export function chatRoutes(fastify: FastifyInstance): void {
         });
       } catch (error) {
         app.log.error(error, `Failed to upload file for instance ${id}`);
-        return reply.code(500).send({
+        reply.code(500).send({
           error: "Failed to upload file to instance",
         });
       }

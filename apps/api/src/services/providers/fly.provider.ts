@@ -79,7 +79,9 @@ export const flyProvider: InstanceProvider = {
       config: {
         image: "ghcr.io/openclaw/openclaw:latest",
         env: {
-          ...(config.telegramBotToken !== undefined && { TELEGRAM_BOT_TOKEN: config.telegramBotToken }),
+          ...(config.telegramBotToken !== undefined && {
+            TELEGRAM_BOT_TOKEN: config.telegramBotToken,
+          }),
           ...(config.aiProvider === "openai" && { OPENAI_API_KEY: config.aiApiKey }),
           ...(config.aiProvider === "anthropic" && { ANTHROPIC_API_KEY: config.aiApiKey }),
           ...(config.aiProvider === "google" && { GOOGLE_API_KEY: config.aiApiKey }),
@@ -139,7 +141,7 @@ export const flyProvider: InstanceProvider = {
     data: ProviderInstanceData,
     sessionId: string,
     message: string,
-    timeoutSeconds = 120,
+    timeoutSeconds = 120
   ): Promise<ChatMessageResult> {
     const { flyAppName, flyMachineId } = requireFlyData(data);
 
@@ -148,14 +150,19 @@ export const flyProvider: InstanceProvider = {
       flyAppName,
       flyMachineId,
       [
-        "node", "openclaw.mjs", "agent",
+        "node",
+        "openclaw.mjs",
+        "agent",
         "--local",
-        "--session-id", sessionId,
-        "--message", message,
+        "--session-id",
+        sessionId,
+        "--message",
+        message,
         "--json",
-        "--timeout", String(timeoutSeconds),
+        "--timeout",
+        String(timeoutSeconds),
       ],
-      { timeout: timeoutSeconds + 10 },
+      { timeout: timeoutSeconds + 10 }
     );
 
     // The agent may write warnings to stderr but still produce valid JSON on stdout
@@ -179,7 +186,7 @@ export const flyProvider: InstanceProvider = {
   async uploadFile(
     data: ProviderInstanceData,
     fileBuffer: Buffer,
-    fileName: string,
+    fileName: string
   ): Promise<FileUploadResult> {
     const { flyAppName, flyMachineId } = requireFlyData(data);
 
@@ -192,22 +199,21 @@ export const flyProvider: InstanceProvider = {
     const safeFilename = `${randomUUID()}${ext}`;
     const containerPath = `/tmp/uploads/${safeFilename}`;
 
-    // Write the file via exec using base64 piped through sh.
-    // Split into chunks to stay under argument length limits.
-    const CHUNK_SIZE = 48000; // ~64KB base64 per chunk, safe for exec arg limits
+    // Write the file via exec using base64 + heredoc piped through sh.
+    // The Fly Machines exec API passes cmd as an argv array (no shell
+    // interpolation), so the heredoc content is never parsed by a shell.
+    // We chunk at 48 000 base64 chars (~36 KB decoded) to stay well under
+    // typical exec argument-length limits (~128 KB on Linux).
+    const CHUNK_SIZE = 48_000;
     const base64Content = fileBuffer.toString("base64");
 
-    // First chunk: create file (overwrite)
-    const firstChunk = base64Content.slice(0, CHUNK_SIZE);
-    await execOnMachine(flyAppName, flyMachineId, [
-      "sh", "-c", `printf '%s' '${firstChunk}' | base64 -d > ${containerPath}`,
-    ]);
-
-    // Subsequent chunks: append
-    for (let offset = CHUNK_SIZE; offset < base64Content.length; offset += CHUNK_SIZE) {
+    for (let offset = 0; offset < base64Content.length; offset += CHUNK_SIZE) {
       const chunk = base64Content.slice(offset, offset + CHUNK_SIZE);
+      const op = offset === 0 ? ">" : ">>";
       await execOnMachine(flyAppName, flyMachineId, [
-        "sh", "-c", `printf '%s' '${chunk}' | base64 -d >> ${containerPath}`,
+        "sh",
+        "-c",
+        `base64 -d ${op} ${containerPath} <<'B64EOF'\n${chunk}\nB64EOF`,
       ]);
     }
 

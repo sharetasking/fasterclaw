@@ -73,7 +73,7 @@ import { InstanceChat } from "@/components/instance-chat";
   instanceId={instance.id}
   instanceName={instance.name}
   isRunning={instance.status === "RUNNING"}
-/>
+/>;
 ```
 
 ## How It Works
@@ -91,7 +91,6 @@ import { InstanceChat } from "@/components/instance-chat";
 
 ## Limitations
 
-- Chat only works for Docker instances (not Fly.io instances)
 - Instance must be in RUNNING status
 - Requires OpenClaw to have web channel enabled (automatic in quick start mode)
 - Chat history is not persisted (can be added later)
@@ -101,13 +100,12 @@ import { InstanceChat } from "@/components/instance-chat";
 - Add chat history persistence in database
 - Support WebSocket for real-time communication
 - Add typing indicators
-- Support file uploads
 - Add chat history export
-- Support for Fly.io instances (requires different communication method)
 
 ## Testing
 
 1. Create a quick start instance:
+
    ```bash
    curl -X POST http://localhost:3001/instances \
      -H "Authorization: Bearer <token>" \
@@ -132,7 +130,3 @@ import { InstanceChat } from "@/components/instance-chat";
 - The Telegram token option remains fully functional
 - Quick start is an additional option, not a replacement
 - Both modes can coexist in the same application
-
-
-
-

@@ -195,7 +195,10 @@ export async function retryInstance(id: string): Promise<ActionResult<Instance>>
 export async function getDefaultInstance(): Promise<Instance | null> {
   try {
     const instances = await getInstances();
-    const defaultInstance = instances.find((i) => "isDefault" in i && i.isDefault === true) ?? (instances.length > 0 ? instances[0] : undefined);
+    const defaultInstance =
+      instances.find(
+        (i) => "isDefault" in i && (i as Record<string, unknown>).isDefault === true
+      ) ?? (instances.length > 0 ? instances[0] : undefined);
 
     if (defaultInstance !== undefined) {
       return defaultInstance;
@@ -217,6 +220,11 @@ export async function getDefaultInstance(): Promise<Instance | null> {
     });
 
     if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.error(
+        `Failed to create default instance: ${String(response.status)} ${response.statusText}`,
+        body
+      );
       return null;
     }
 
@@ -271,7 +279,9 @@ export async function sendChatMessage(
 export async function uploadChatFile(
   instanceId: string,
   formData: FormData
-): Promise<ActionResult<{ filePath: string; fileName: string; fileSize: number; mimeType: string }>> {
+): Promise<
+  ActionResult<{ filePath: string; fileName: string; fileSize: number; mimeType: string }>
+> {
   try {
     const token = await getAuthToken();
     if (token == null || token === "") {
